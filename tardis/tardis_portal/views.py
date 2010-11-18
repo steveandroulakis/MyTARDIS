@@ -505,7 +505,10 @@ def view_experiment(request, experiment_id):
                     {'name': experiment.title, 'link': '/experiment/view/' +
                      str(experiment.id) + '/'}],
             'searchDatafileSelectionForm':
-            getNewSearchDatafileSelectionForm()})
+            getNewSearchDatafileSelectionForm(),
+            ##added temporarily until app installation has been databased
+            'installed_apps': ["mrtardis"]
+            })
     except Experiment.DoesNotExist, de:
         return return_response_not_found(request)
 

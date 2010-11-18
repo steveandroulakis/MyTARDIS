@@ -1,0 +1,7 @@
+*~
+*.pyc
+apache/apache_django_wsgi.conf
+apache/django.wsgi
+tardis.log
+tardis/settings.py
+tardis/tardisdb

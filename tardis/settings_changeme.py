@@ -140,10 +140,21 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.admin',
     'django.contrib.admindocs',
+    'tardis.apps.*',
     'tardis.tardis_portal',
     'registration',
     'tardis.tardis_portal.templatetags',
     )
+
+# added by Grischa:
+#   to use south in myapps, without introducing another 
+#   dependency for the main code base
+try:
+    import south
+    INSTALLED_APPS += ('south',)
+except ImportError,e:
+    pass
+
 
 ACCOUNT_ACTIVATION_DAYS = 3
 

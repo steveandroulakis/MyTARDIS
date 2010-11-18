@@ -94,4 +94,6 @@ urlpatterns = patterns(
     (r'media/(?P<path>.*)$', 'django.views.static.serve',
      {'document_root': settings.ADMIN_MEDIA_STATIC_DOC_ROOT}),
     (r'^admin/(.*)', admin.site.root),
+    (r'^uploadify/', include('tardis.apps.uploadify.urls')),
+    (r'^apps/mrtardis/', include('tardis.apps.mrtardis.urls')),
 )
