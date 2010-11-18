@@ -1,0 +1,14 @@
+
+{% load uploadify_tags %}
+{% multi_file_upload upload_complete_url %}
+<p>
+<a href="javascript:$('#fileInput').uploadifyUpload();">Upload Files</a>
+</p>
+
+<script type="text/javascript">
+
+$("#uploadify").bind("allUploadsComplete", function(e, data){
+    echo("bound");
+});
+
+</script>

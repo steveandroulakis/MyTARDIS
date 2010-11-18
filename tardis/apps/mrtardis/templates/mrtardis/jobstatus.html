@@ -1,0 +1,5 @@
+<table><tr><th>Job ID</th><th>Status</th></tr>
+{% for job in jobs %}
+  <tr><td>{{ job.jobid }}</td><td>{{ job.jobstatus }}</td></tr>
+{% endfor %}
+</table>

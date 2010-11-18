@@ -1,0 +1,47 @@
+
+<script type="text/javascript">
+$(document).ready(function() {
+//    $.get("/apps/mrtardis/jobstatus/{{ experiment_id }}", function(data) {
+//	    $(".jobstatus").html(data);
+//	});
+    {% if untested %}
+    $.get("/apps/mrtardis/test_user_setup", function(data) {
+	$("#test_user_setup").html(data);
+    });
+    {% endif %}
+    $("a[href=#ajax-goodness]").click(function() {
+	$.get("/apps/mrtardis/jobstatus/{{ experiment_id }}", function(data) {
+	    $(".jobstatus").html(data);
+	});
+    });
+    $("a[href=#startMR]").click(function() {
+	$.ajax({
+	    type: "GET",
+	    url: "/apps/mrtardis/startMR/{{ experiment_id }}",
+	    dataType: "html",
+	    success: function(data) {
+		$(".startMR").html(data);
+	    }
+	});
+    });
+});
+
+
+</script>
+
+<p id="test_user_setup">
+</p>
+<p>
+<a href="#startMR">Start new Molecular Replacement</a>
+</p>
+<div class="startMR">
+</div>
+<p>
+<a href="#ajax-goodness">Update Jobs</a>
+</p>
+<div class="jobstatus">
+</div>
+<p>Update test 2</p>
+<form action="http://www.google.com">
+<input type="submit" value="Google"/>
+</form>

@@ -1,0 +1,35 @@
+{% if setup %}
+<h3>Hi {{ user.username }}</h3>
+<p>Your authcate is {{ user.hpc_username }}
+{% else %}{% if not authenticated %}
+Please Log in
+{% else %}
+<p>
+Please set up HPC capabilities by first giving us your MSG username:
+</p>
+<form action="/apps/mrtardis/setupHPC" id="hpcsetupform" method="POST">
+
+{{ form }}
+
+<script type="text/javascript">
+$(document).ready(function() {
+    $("a[href=#submithpcform]").click(function() {
+	$.post("/apps/mrtardis/test_user_setup", 
+	       $("#hpcsetupform").serialize(),
+	       function(data) {
+		   $("#test_user_setup").html(data);
+	       });
+    });
+});
+
+</script>
+
+<p>
+<a href="#submithpcform">SUBMIT</a>
+</p>
+
+</form>
+
+{% endif %}
+{% endif %}
+
