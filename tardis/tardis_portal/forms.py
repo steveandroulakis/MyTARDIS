@@ -97,7 +97,8 @@ class ImportParamsForm(forms.Form):
 class RegisterExperimentForm(forms.Form):
 
     username = forms.CharField(max_length=400, required=True)
-    password = forms.CharField(max_length=400, required=True)
+    password = forms.CharField(max_length=400, required=True,
+                               widget=forms.PasswordInput)
     xmldata = forms.FileField()
     experiment_owner = forms.CharField(max_length=400, required=False)
     originid = forms.CharField(max_length=400, required=False)
