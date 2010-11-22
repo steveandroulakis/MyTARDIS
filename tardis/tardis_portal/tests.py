@@ -415,6 +415,432 @@ class EquipmentTestCase(TestCase):
         self.assertEqual(len(response.context['object_list']), 2)
 
 
+class ModelTestCase(TestCase):
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        user = 'tardis_user1'
+        pwd = 'secret'
+        email = ''
+        self.user = User.objects.create_user(user, email, pwd)
+
+    def test_experiment(self):
+        from tardis.tardis_portal import models
+        exp = models.Experiment(title='test exp1',
+                                institution_name='monash',
+                                created_by=self.user,
+                                )
+        exp.save()
+        self.assertEqual(exp.title, 'test exp1')
+        self.assertEqual(exp.url, '')
+        self.assertEqual(exp.institution_name, 'monash')
+        self.assertEqual(exp.approved, False)
+        self.assertEqual(exp.handle, None)
+        self.assertEqual(exp.created_by, self.user)
+        self.assertEqual(exp.public, False)
+        self.assertEqual(exp.get_absolute_url(), '/experiment/view/1/',
+                         exp.get_absolute_url() + ' != /experiment/view/1/')
+
+    def test_authors(self):
+        from tardis.tardis_portal import models
+        exp = models.Experiment(title='test exp1',
+                                institution_name='monash',
+                                created_by=self.user,
+                                )
+        exp.save()
+
+        a1 = models.Author(name="steve")
+        a1.save()
+
+        a2 = models.Author(name="russell")
+        a2.save()
+
+        ae1 = models.Author_Experiment(experiment=exp,
+                                       author=a1,
+                                       order=0)
+        ae1.save()
+
+        ae2 = models.Author_Experiment(experiment=exp,
+                                       author=a2,
+                                       order=1)
+        ae2.save()
+
+        authors = exp.authors.all()
+
+        # confirm that there are 2 authors
+        self.assertEqual(len(authors), 2)
+        self.assertTrue(a1 in authors)
+        self.assertTrue(a2 in authors)
+
+    def test_datafile(self):
+        from tardis.tardis_portal import models
+        exp = models.Experiment(title='test exp1',
+                                institution_name='monash',
+                                approved=True,
+                                created_by=self.user,
+                                public=False,
+                                )
+        exp.save()
+
+        dataset = models.Dataset(description="dataset description...",
+                                 experiment=exp)
+        dataset.save()
+
+        df_file = models.Dataset_File(dataset=dataset,
+                                      filename='file.txt',
+                                      url='file://path/file.txt',
+                                      )
+        df_file.save()
+        self.assertEqual(df_file.filename, 'file.txt')
+        self.assertEqual(df_file.url, 'file://path/file.txt')
+        self.assertEqual(df_file.dataset, dataset)
+        self.assertEqual(df_file.size, '')
+
+
+class ExperimentFormTestCase(TestCase):
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        user = 'tardis_user1'
+        pwd = 'secret'
+        email = ''
+        self.user = User.objects.create_user(user, email, pwd)
+
+    def _data_to_post(self, data=None):
+        from django.http import QueryDict
+        data = data or [('authors', 'russell, steve'),
+                        ('created_by', self.user.pk),
+                        ('dataset_description[0]', 'first one'),
+                        ('dataset_description[1]', 'second'),
+                        ('description', 'desc.....'),
+                        ('file_filename[0]', 'file/another.py'),
+                        ('file_filename[1]', 'second_ds/file.py'),
+                        ('file_filename[1]', 'second_ds/file1.py'),
+                        ('institution_name', 'some university'),
+                        ('title', 'test experiment'),
+                        ('url', 'http://www.test.com')]
+        data = QueryDict('&'.join(['%s=%s' % (k, v) for k, v in data]))
+        return data
+
+    def _create_experiment(self, data=None):
+        from tardis.tardis_portal import models, forms
+        from os.path import basename
+        from django.contrib.auth.models import User
+        data = self._data_to_post(data)
+        exp = models.Experiment(title=data['title'],
+                                institution_name=data['institution_name'],
+                                description=data['description'],
+                                created_by=User.objects.get(id=data['created_by']),
+                                )
+        exp.save()
+        for i, a in enumerate(data['authors'].split(', ')):
+            author = models.Author(name=a)
+            author.save()
+
+            ae = models.Author_Experiment(experiment=exp,
+                                          author=author,
+                                          order=i)
+            ae.save()
+
+        for k, v in data.items():
+            match = forms.FullExperiment.re_post_data.match(k)
+            if not match or not 'dataset' == match.groupdict()['form']:
+                continue
+            number = int(match.groupdict()['number'])
+            dataset = models.Dataset(description=v,
+                                     experiment=exp)
+            dataset.save()
+
+            datafiles = data.getlist('file_filename[' + str(number) + ']')
+            for f in datafiles:
+                d = models.Dataset_File(url='file://' + f,
+                                         dataset=dataset,
+                                         filename=basename(f))
+                d.save()
+        return exp
+
+    def test_form_printing(self):
+        from tardis.tardis_portal import forms
+
+        example_post = self._data_to_post()
+
+        f = forms.FullExperiment(example_post)
+        as_table = """<tr><th><label for="url">Url:</label></th><td><input id="url" type="text" name="url" value="http://www.test.com" maxlength="255" /></td></tr>
+<tr><th><label for="title">Title:</label></th><td><input id="title" type="text" name="title" value="test experiment" maxlength="400" /></td></tr>
+<tr><th><label for="institution_name">Institution name:</label></th><td><input id="institution_name" type="text" name="institution_name" value="some university" maxlength="400" /></td></tr>
+<tr><th><label for="description">Description:</label></th><td><textarea id="description" rows="10" cols="40" name="description">desc.....</textarea></td></tr>
+<tr><th><label for="created_by">Created by:</label></th><td><select name="created_by" id="created_by">
+<option value="">---------</option>
+<option value="1" selected="selected">tardis_user1</option>
+</select></td></tr>
+<tr><th><label for="public">Public:</label></th><td><input type="checkbox" name="public" id="public" /></td></tr>
+<tr><th><label for="authors">Authors:</label></th><td><input type="text" name="authors" value="russell, steve" id="authors" /></td></tr>"""
+        self.assertEqual(f.as_table(), as_table)
+
+    def test_form_parsing(self):
+        from os.path import basename
+        from tardis.tardis_portal import forms, models
+
+        example_post = [('title', 'test experiment'),
+                        ('created_by', self.user.pk),
+                        ('url', 'http://www.test.com'),
+                        ('institution_name', 'some university'),
+                        ('description', 'desc.....'),
+                        ('authors', 'russell, steve'),
+                        ('dataset_description[0]', 'first one'),
+                        ('file_filename[0]', 'location.py'),
+                        ('file_filename[0]', 'another.py'),
+                        ('file_url[0]', 'file/location.py'),
+                        ('file_url[0]', 'file/another.py'),
+                        ('dataset_description[1]', 'second'),
+                        ('file_filename[1]', 'file.py'),
+                        ('file_url[1]', 'second_ds/file.py'),
+                        ]
+        example_post = self._data_to_post(example_post)
+
+        f = forms.FullExperiment(example_post)
+
+        # test validity of form data
+        self.assertTrue(f.is_valid(), repr(f.errors))
+
+        # save form
+        exp = f.save()
+
+        # retrieve model from database
+        e = models.Experiment.objects.get(pk=exp['experiment'].pk)
+        self.assertEqual(e.title, example_post['title'])
+        self.assertEqual(unicode(e.created_by.pk), example_post['created_by'])
+        self.assertEqual(e.institution_name, example_post['institution_name'])
+        self.assertEqual(e.description, example_post['description'])
+
+        # test there are 2 authors
+        self.assertEqual(len(e.authors.all()), 2)
+
+        # check we can get one of the authors back
+        self.assertEqual(e.authors.get(name='steve').name, 'steve')
+
+        # check both datasets have been saved
+        ds = models.Dataset.objects.filter(experiment=exp['experiment'].pk)
+        self.assertEqual(len(ds), 2)
+
+        # check that all the files exist in the database
+        check_files = {'first one': ['file/location.py', 'file/another.py'],
+                       'second': ['second_ds/file.py']}
+        for d in ds:
+            files = models.Dataset_File.objects.filter(dataset=d.pk)
+            v_files = [basename(f) for f in check_files[d.description]]
+            v_urls = check_files[d.description]
+            for f in files:
+                self.assertTrue(f.filename in v_files,
+                                "%s not in %s" % (f.filename, v_files))
+                self.assertTrue(f.url in v_urls,
+                                "%s not in %s" % (f.url, v_urls))
+
+    def test_initial_form(self):
+        from tardis.tardis_portal import forms
+
+        as_table = """<tr><th><label for="url">Url:</label></th><td><input id="url" type="text" name="url" maxlength="255" /></td></tr>
+<tr><th><label for="title">Title:</label></th><td><input id="title" type="text" name="title" maxlength="400" /></td></tr>
+<tr><th><label for="institution_name">Institution name:</label></th><td><input id="institution_name" type="text" name="institution_name" maxlength="400" /></td></tr>
+<tr><th><label for="description">Description:</label></th><td><textarea id="description" rows="10" cols="40" name="description"></textarea></td></tr>
+<tr><th><label for="created_by">Created by:</label></th><td><select name="created_by" id="created_by">
+<option value="" selected="selected">---------</option>
+<option value="1">tardis_user1</option>
+</select></td></tr>
+<tr><th><label for="public">Public:</label></th><td><input type="checkbox" name="public" id="public" /></td></tr>
+<tr><th><label for="authors">Authors:</label></th><td><input type="text" name="authors" id="authors" /></td></tr>"""
+
+        f = forms.FullExperiment()
+        self.assertEqual(f.as_table(), as_table)
+
+    def test_validation(self):
+        from tardis.tardis_portal import forms
+
+        # test empty form
+        f = forms.FullExperiment()
+        self.assertTrue(f.is_valid())
+
+        # test blank post data
+        post = self._data_to_post([('authors', ''),
+                                   ('created_by', ''),
+                                   ('dataset_description[0]', ''),
+                                   ('dataset_description[1]', ''),
+                                   ('description', ''),
+                                   ('file_filename[0]', ''),
+                                   ('file_filename[1]', ''),
+                                   ('institution_name', ''),
+                                   ('title', ''),
+                                   ('url', '')])
+        f = forms.FullExperiment(data=post)
+        self.assertFalse(f.is_valid())
+
+        # test a valid form
+        example_post = self._data_to_post()
+        f = forms.FullExperiment(example_post)
+        self.assertTrue(f.is_valid())
+
+    def test_instance(self):
+        from tardis.tardis_portal import forms
+        exp = self._create_experiment()
+        f = forms.FullExperiment(instance=exp)
+        value = "value=\"%s\""
+        text_area = ">%s</textarea>"
+        self.assertTrue(value % 'test experiment' in
+                        str(f['title']), str(f['title']))
+        self.assertTrue(value % 'some university' in
+                        str(f['institution_name']))
+        self.assertTrue('selected="selected">tardis_user1</option>' in
+                        str(f['created_by']))
+        for ds, df in f.get_datasets():
+            if 'dataset_description[0]' in str(ds['description']):
+                self.assertTrue(text_area % "first one" in
+                                str(ds['description']))
+                for file in df:
+                    self.assertTrue(value % "another.py" in
+                                    str(file['filename']))
+
+            if 'dataset_description[1]' in str(ds['description']):
+                self.assertTrue(text_area % "second" in
+                                str(ds['description']))
+                for file in df:
+                    if value % "file.py" in str(file['filename']):
+                        continue
+                    if value % "file1.py" in str(file['filename']):
+                        continue
+                    self.assertTrue(False, "Not all files present")
+
+        self.assertTrue(value % "russell, steve" in str(f['authors']),
+                        str(f['authors']))
+
+    def test_render(self):
+        from tardis.tardis_portal import forms
+        from django.template import Template, Context
+        exp = self._create_experiment()
+        f = forms.FullExperiment(instance=exp)
+        template = """<form action="" method="post">
+    {% for field in form %}
+        <div class="fieldWrapper">
+            {{ field.errors }}
+            {{ field.label_tag }}: {{ field }}
+        </div>
+    {% endfor %}
+    {% for dataset_form, file_forms in form.get_datasets %}
+        {% for field in dataset_form %}
+        <div class="fieldWrapper">
+            {{ field.errors }}
+            {{ field.label_tag }}: {{ field }}
+        </div>
+        {% endfor %}
+    {% for file_form in file_forms %}
+        {% for field in file_form %}
+        <div class="fieldWrapper">
+            {{ field.errors }}
+            {{ field.label_tag }}: {{ field }}
+        </div>
+        {% endfor %}
+    {% endfor %}
+    {% endfor %}
+    <p><input type="submit" value="Submit" /></p>
+</form>
+"""
+        t = Template(template)
+        output = t.render(Context({'form': f}))
+        value = "value=\"%s\""
+        text_area = ">%s</textarea>"
+        # test experiment fields
+        self.assertTrue(value % "test experiment" in output)
+        self.assertTrue(value % "some university" in output)
+        self.assertTrue(text_area % "desc....." in output)
+
+        self.assertTrue(text_area % "second")
+        self.assertTrue(value % "file1.py" in output)
+        self.assertTrue(value % "file://second_ds/file.py" in output)
+        self.assertEqual(output.count('file_filename[1]'), 4)
+        self.assertEqual(output.count('dataset_description[1]'), 2)
+
+    def test_initial_data(self):
+        from tardis.tardis_portal import forms
+        from django.forms.models import model_to_dict
+        exp = self._create_experiment()
+        initial = model_to_dict(exp)
+        for i, ds in enumerate(exp.dataset_set.all()):
+            initial['dataset_description[' + str(i) + ']'] = ds.description
+
+        f = forms.FullExperiment(initial=initial)
+
+        value = "value=\"%s\""
+        text_area = ">%s</textarea>"
+        self.assertTrue(value % 'test experiment' in str(f['title']))
+        self.assertTrue(value % 'some university' in
+                        str(f['institution_name']))
+        self.assertTrue('selected="selected">tardis_user1</option>' in
+                        str(f['created_by']))
+        # TODO the reset of this test is disabled because it's too complex
+        return
+        for ds, df in f.get_datasets():
+            self.assertTrue(text_area % "first one" in
+                            str(ds['description']))
+        # TODO Currently broken, not sure if initial will be used without the
+        # data argument
+        self.assertTrue(text_area % "second" in
+                        str(f['dataset_description[1]']))
+
+        self.assertTrue(value % "russell, steve" in str(f['authors']))
+
+    def test_field_translation(self):
+        from tardis.tardis_portal import forms
+        f = forms.FullExperiment()
+        self.assertEqual(f._translate_dsfieldname('description', 10),
+                         'dataset_description[10]')
+        self.assertEqual(f._translate_dsfieldname('description', '1'),
+                         'dataset_description[1]')
+
+
+class TraverseTestCase(TestCase):
+    dirs = ['dir1', 'dir2', path.join('dir2', 'subdir'), 'dir3']
+    files = [['dir1', 'file1'],
+             ['dir2', 'file2'],
+             ['dir2', 'file3'],
+             ['dir2', 'subdir', 'file4']]
+
+    def setUp(self):
+        from django.conf import settings
+        staging = settings.STAGING_PATH
+        import os
+        from os import path
+        for dir in self.dirs:
+            os.mkdir(path.join(staging, dir))
+        for file in self.files:
+            f = open(path.join(staging, *file), 'w')
+            f.close()
+
+    def tearDown(self):
+        from django.conf import settings
+        staging = settings.STAGING_PATH
+        import os
+        from os import path
+        for file in self.files:
+            os.remove(path.join(staging, *file))
+        self.dirs.reverse()
+        for dir in self.dirs:
+            os.rmdir(path.join(staging, dir))
+
+    def test_traversal(self):
+        from tardis.tardis_portal import views
+        result = '<ul><li id="phtml_1"><a>My Files</a><ul>\
+<li id="dir1"><a>dir1</a><ul><li id="dir1/file1"><a>file1</a>\
+</li></ul></li><li id="dir2"><a>dir2</a><ul><li id="dir2/file2">\
+<a>file2</a></li><li id="dir2/file3"><a>file3</a></li><li id="dir2/subdir">\
+<a>subdir</a><ul><li id="dir2/subdir/file4"><a>file4</a></li></ul></li></ul>\
+</li><li id="dir3"><a>dir3</a><ul></ul></li><li id="directory"><a>directory\
+</a><ul><li id="directory/t"><a>t</a></li><li id="directory/testfile"><a>\
+testfile</a></li><li id="directory/tt"><a>tt</a></li></ul></li>\
+<li id="site.db"><a>site.db</a></li><li id="site1"><a>site1</a></li>\
+<li id="site2"><a>site2</a></li><li id="site3"><a>site3</a></li>\
+<li id="site4"><a>site4</a></li></ul></li></ul>'
+        self.assertEqual(views.staging_traverse(), result)
+
+
 def suite():
     userInterfaceSuite = \
         unittest.TestLoader().loadTestsFromTestCase(UserInterfaceTestCase)

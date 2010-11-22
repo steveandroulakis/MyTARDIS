@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 admin.autodiscover()
-from django.contrib.auth.views import logout
+from django.contrib.auth.views import login, logout
 
 from django.conf.urls.defaults import *
 from django.conf import settings
@@ -45,6 +45,8 @@ urlpatterns = patterns(
      'tardis.tardis_portal.views.register_experiment_ws_xmldata_internal'),
     (r'^experiment/view/(?P<experiment_id>\d+)/publish/$',
      'tardis.tardis_portal.views.publish_experiment'),
+    (r'^experiment/create/$',
+     'tardis.tardis_portal.views.create_experiment'),
     (r'^search/experiment/$',
      'tardis.tardis_portal.views.search_experiment'),
     (r'^search/datafile/$',

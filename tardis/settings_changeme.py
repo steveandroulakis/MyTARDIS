@@ -109,10 +109,6 @@ LDAP_URL = 'directory.example.com'
 BASE_DN = 'o=Organisation, c=X'
 AUTH_PROFILE_MODULE = 'tardis_portal.UserProfile'
 
-# Temporarily disable transaction management until everyone agrees that
-# we should start handling transactions
-DISABLE_TRANSACTION_MANAGEMENT = False
-
 STATIC_DOC_ROOT = os.path.join(os.path.dirname(__file__),
                                'tardis_portal/site_media').replace('\\', '/')
 
@@ -120,7 +116,7 @@ ADMIN_MEDIA_STATIC_DOC_ROOT = \
     '/Library/Frameworks/Python.framework/Versions/2.5/lib/python2.5/'\
     'site-packages/django/contrib/admin/media'
 FILE_STORE_PATH = '/path/to/store'
-
+STAGING_PATH = '/path/to/staging'
 # Absolute path to the directory that holds media.
 # Example: "/home/media/media.lawrence.com/"
 

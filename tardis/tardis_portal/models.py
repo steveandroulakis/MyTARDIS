@@ -52,7 +52,7 @@ class XSLT_docs(models.Model):
 
 class Author(models.Model):
 
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, primary_key=True)
 
     def __unicode__(self):
         return self.name
@@ -72,9 +72,15 @@ class Experiment(models.Model):
     created_by = models.ForeignKey(User)
     handle = models.TextField(null=True, blank=True)
     public = models.BooleanField()
+    authors = models.ManyToManyField(Author, through='Author_Experiment')
 
     def __unicode__(self):
         return self.title
+
+    @models.permalink
+    def get_absolute_url(self):
+        return ('tardis.tardis_portal.views.view_experiment', (),
+                {'experiment_id': self.id})
 
 
 class Experiment_Owner(models.Model):
@@ -116,7 +122,7 @@ class Dataset_File(models.Model):
 
     dataset = models.ForeignKey(Dataset)
     filename = models.CharField(max_length=400)
-    url = models.URLField(max_length=400)
+    url = models.CharField(max_length=400)
     size = models.CharField(blank=True, max_length=400)
     protocol = models.CharField(blank=True, max_length=10)
     created_time = models.DateTimeField(null=True, blank=True)

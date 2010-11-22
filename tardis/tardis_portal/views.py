@@ -9,22 +9,23 @@ views.py
 
 """
 
+import shutil
 from base64 import b64decode
 
-from django.template import Context
+from django.template import Context, loader
 from django.http import HttpResponse
 
 from django.conf import settings
 
 from django.shortcuts import render_to_response
 from django.template import RequestContext
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User, Group
 from django.http import HttpResponseRedirect, HttpResponseForbidden, \
     HttpResponseNotFound, HttpResponseServerError
 from django.contrib.auth.decorators import login_required
 
-from tardis.tardis_portal import ProcessExperiment
+from tardis.tardis_portal.ProcessExperiment import ProcessExperiment
 from tardis.tardis_portal.forms import *
 from tardis.tardis_portal.errors import *
 from tardis.tardis_portal.logger import logger
@@ -33,10 +34,14 @@ from django.core.paginator import Paginator, InvalidPage, EmptyPage
 
 from tardis.tardis_portal.models import *
 from tardis.tardis_portal import constants
+from django.db.models import Sum
 
 import urllib
 import urllib2
 import datetime
+
+import os
+from os import path
 
 from tardis.tardis_portal import ldap_auth
 
@@ -480,7 +485,10 @@ def view_experiment(request, experiment_id):
         size = 0
         for dataset in experiment.dataset_set.all():
             for df in dataset.dataset_file_set.all():
-                size = size + long(df.size)
+                try:
+                    size = size + long(df.size)
+                except:
+                    pass
 
         owners = None
         try:
@@ -524,11 +532,11 @@ def experiment_index(request):
     if request.user.is_authenticated():
         experiments = get_accessible_experiments(request.user.id)
         if experiments:
-            experiments = experiments.order_by('title')
+            experiments = experiments.order_by('-update_time')
 
     public_experiments = Experiment.objects.filter(public=True)
     if public_experiments:
-        public_experiments = public_experiments.order_by('title')
+        public_experiments = public_experiments.order_by('-update_time')
 
     c = Context({
         'experiments': experiments,
@@ -541,6 +549,72 @@ def experiment_index(request):
             getNewSearchDatafileSelectionForm()})
     return HttpResponse(render_response_index(request,
                         'tardis_portal/experiment_index.html', c))
+
+
+# web service, depreciated
+def register_experiment_ws(request):
+
+    # from java.lang import Exception
+
+    import sys
+
+    process_experiment = ProcessExperiment()
+    status = ''
+    if request.method == 'POST':  # If the form has been submitted...
+
+        url = request.POST['url']
+        username = request.POST['username']
+        password = request.POST['password']
+
+        from django.contrib.auth import authenticate
+        user = authenticate(username=username, password=password)
+        if user is not None:
+            if not user.is_active:
+                return return_response_error(request)
+        else:
+            return return_response_error(request)
+
+        try:
+            experiments = Experiment.objects.all()
+            experiments = experiments.filter(url__iexact=url)
+            if not experiments:
+                eid = process_experiment.register_experiment(url=url,
+                        created_by=user)
+            else:
+                return return_response_error_message(request,
+                        'tardis_portal/blank_status.html',
+                        'Error: Experiment already exists')
+        except IOError, i:
+            return return_response_error_message(request,
+                    'tardis_portal/blank_status.html',
+                    'Error reading file. Perhaps an incorrect URL?')
+        except:
+            return return_response_error_message(request,
+                    'tardis_portal/blank_status.html',
+                    'Unexpected Error - ', sys.exc_info()[0])
+
+        response = HttpResponse(status=200)
+        response['Location'] = request.build_absolute_uri(
+            '/experiment/view/' + str(eid))
+
+        return response
+    else:
+        return return_response_error(request)
+
+
+def create_placeholder_experiment(user):
+    e = Experiment(
+        url='http://www.example.com',
+        approved=True,
+        title='Placeholder Title',
+        institution_name='Placeholder',
+        description='Placeholder description',
+        created_by=user,
+        )
+
+    e.save()
+
+    return e.id
 
 
 # todo complete....
@@ -669,10 +743,11 @@ def register_experiment_ws_xmldata_internal(request):
         else:
             return return_response_error(request)
 
-        _registerExperimentDocument(filename=filename,
+        process_experiment = ProcessExperiment()
+        process_experiment.register_experiment_xmldata_file(filename=filename,
                 created_by=user, expid=eid)
 
-        response = HttpResponse('Finished cataloging: %s' % eid,
+        response = HttpResponse('Finished cataloging: ' + str(eid),
                                 status=200)
         response['Location'] = request.build_absolute_uri(
             '/experiment/view/' + str(eid))
@@ -711,6 +786,7 @@ def _registerExperimentDocument(filename, created_by, expid=None):
 
 # web service
 def register_experiment_ws_xmldata(request):
+    import sys
     import threading
 
     status = ''
@@ -738,14 +814,7 @@ def register_experiment_ws_xmldata(request):
             else:
                 return return_response_error(request)
 
-            e = Experiment(
-                title='Placeholder Title',
-                approved=True,
-                created_by=user,
-                )
-
-            e.save()
-            eid = e.id
+            eid = create_placeholder_experiment(user)
 
             dir = settings.FILE_STORE_PATH + '/' + str(eid)
 
@@ -860,6 +929,7 @@ def retrieve_xml_data(request, dataset_file_id):
     from pygments import highlight
     from pygments.lexers import XmlLexer
     from pygments.formatters import HtmlFormatter
+    from pygments.styles import get_style_by_name
 
     xml_data = XML_data.objects.get(datafile__pk=dataset_file_id)
 
@@ -874,6 +944,7 @@ def retrieve_xml_data(request, dataset_file_id):
 
 @dataset_access_required
 def retrieve_datafile_list(request, dataset_id):
+    from django.db.models import Count
 
     dataset_results = \
         Dataset_File.objects.filter(
@@ -1721,3 +1792,129 @@ def search_equipment(request):
     c = Context({'form': form,
                  'searchDatafileSelectionForm': getNewSearchDatafileSelectionForm()})
     return render_to_response('tardis_portal/search_equipment.html', c)
+
+
+def staging_traverse(staging=settings.STAGING_PATH):
+    """
+    recurse through directories and form HTML list tree for jtree
+    :param staging: the path to begin traversing
+    :type staging: string
+    :rtype: string
+    """
+    ul = "<ul><li id=\"phtml_1\"><a>My Files</a><ul>"
+    for f in os.listdir(staging):
+        ul = ul + traverse(path.join(staging, f), staging)
+    return  ul + "</ul></li></ul>"
+
+
+def traverse(pathname, dirname=settings.STAGING_PATH):
+    """
+    Traverse a path and return a nested group of unordered list HTML tags::
+
+       <ul>
+         <li id="dir2/file2"><a>file2</a></li>
+         <li id="dir2/file3"><a>file3</a></li>
+         <li id="dir2/subdir"><a>subdir</a>
+           <ul>
+             <li id="dir2/subdir/file4"><a>file4</a></li>
+           </ul>
+         </li>
+       </ul>
+
+    :param pathname: the directory to traverse
+    :type pathname: string
+    :param dirname: the root directory of the traversal
+    :typr dirname: string
+    :rtype: string
+    """
+    li = "<li id=\"%s\"><a>%s</a>" % (path.relpath(pathname, dirname),
+                                      path.basename(pathname))
+    if path.isfile(pathname):
+        return  li + "</li>"
+    if path.isdir(pathname):
+        ul = "<ul>"
+        for f in os.listdir(pathname):
+            ul = ul + traverse(path.join(pathname, f), dirname)
+        return  li + ul + "</ul></li>"
+    return ''
+
+
+def stage_files(datafiles, experiment_id,
+                staging=settings.STAGING_PATH, store=settings.FILE_STORE_PATH):
+    """
+    move files from the staging area to the dataset.
+    """
+    experiment_path = path.join(store, str(experiment_id))
+    if not os.path.exists(experiment_path):
+        os.makedirs(experiment_path)
+
+    for datafile in datafiles:
+        urlpath = datafile.url
+        todir = path.join(experiment_path, path.split(urlpath)[0])
+        if not os.path.exists(todir):
+            os.makedirs(todir)
+
+        copyfrom = path.join(staging, urlpath)  # to be url
+        copyto = path.join(experiment_path, urlpath)
+        if path.exists(copyto):
+            logger.error("can't stage %s destination exists" % (copyto))
+            # TODO raise error
+            continue
+
+        logger.debug("staging file: %s to %s" % (copyfrom, copyto))
+        datafile.size = os.path.getsize(copyfrom)
+        datafile.save()
+        shutil.move(copyfrom, copyto)
+
+
+@login_required
+def create_experiment(request,
+                      template="tardis_portal/create_experiment.html"):
+    form = FullExperiment()
+
+    form = FullExperiment(request.POST, request.FILES)
+
+    # sanitize stuff
+    #
+    # basename(files['filename'][i]
+
+    if form.is_valid():
+        full_experiment = form.save(commit=False)
+
+        for ds_f in full_experiment['dataset_files']:
+            filepath = ds_f.filename
+            ds_f.url = filepath
+            ds_f.filename = os.path.basename(filepath)
+            ds_f.size = 0
+            ds_f.protocol = "file"
+        # group/owner assignment stuff, soon to be replaced
+        experiment = full_experiment['experiment']
+        full_experiment.save_m2m()
+
+        g = Group(name=experiment.id)
+        g.save()
+        exp_owner = Experiment_Owner(experiment=experiment,
+                user=request.user)
+        exp_owner.save()
+        request.user.groups.add(g)
+
+        datafiles = full_experiment['dataset_files']
+        stage_files(datafiles, experiment.id)
+
+        return HttpResponseRedirect(experiment.get_absolute_url())
+    else:
+
+        pass
+        # exp = Experiment.objects.get(id=52)
+        #
+        # form = FullExperiment(instance=exp)
+        #
+
+    c = Context({'subtitle': 'Create Experiment',
+                 'directory_listing': staging_traverse(),
+                 'user_id': request.user.id,
+                'form': form,
+              })
+
+    return HttpResponse(render_response_index(request,
+                        template, c))
