@@ -21,7 +21,7 @@ def test_hpc_connection(user):
         return True
     myHPC = hpc.hpc(secrets.hostname,
                     hpcuser.hpc_username,
-                    type="sge", authtype="key",
+                    queuetype="sge", authtype="key",
                     key=secrets.privatekey, keytype="rsa")
     if myHPC.testConnection():
         hpcuser.testedConnection = True
