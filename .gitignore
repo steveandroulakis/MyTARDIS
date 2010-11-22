@@ -6,3 +6,4 @@ tardis.log
 tardis/settings.py
 tardis/tardisdb
 .ropeproject/*
+store/*
