@@ -8,6 +8,9 @@ import tardis.apps.mrtardis.backend.secrets as secrets
 
 
 def test_hpc_connection(user):
+    """returns True/False after trying to connect to the cluster,
+    sets a flag if successful and returns True if flag is set as
+    True without testing the connection first"""
     try:
         hpcuser = MrTUser.objects.get(pk=user.id)
     except MrTUser.DoesNotExist:
