@@ -1,25 +1,27 @@
 # Testing
 
 ## EXAMPLE USER INPUT BEGIN
-example_input = { "f_value": "FP",
-                  "sigf_value": "SIGFP",
-                  "space_group": ["P6","P61"],
-                  "mol_weight": "11807",
-                  "sequence": "SEKIIHLTDDSFDTDVLKADGAILVDFWAEWCGPCKMIAPILDEIADEYQGKLTVAKLNIDQNPGTAPKYGIRGIPTLLLFKNGEVAATKVGALSKGQLKEFLDANLA",
-                  "num_in_asym": "2",
-                  "rmsd": "1.0",
-                  "ensemble_number": "1",
-                  "packing": "10",
-}
+example_input = {"f_value": "FP",
+                 "sigf_value": "SIGFP",
+                 "space_group": ["P6", "P61"],
+                 "mol_weight": "11807",
+                 "sequence": "SEKIIHLTDDSFDTDVLKADGAILVDFWAEWCGPCKMIAPILDE" +
+                 "IADEYQGKLTVAKLNIDQNPGTAPKYGIRGIPTLLLFKNGEVAATKV" +
+                 "GALSKGQLKEFLDANLA",
+                 "num_in_asym": "2",
+                 "rmsd": "1.0",
+                 "ensemble_number": "1",
+                 "packing": "10",
+                 }
 
 
 mtzfile = "../../testfiles/2H74_structure_factors.mtz"
-pdbfiles = [ "../../testfiles/example.zip"]
+pdbfiles = ["../../testfiles/example.zip"]
 ### EXAMPLE USER INPUT END
 outputdir = "../../testresults/"
 
-import mrtardis
-import utils
+import tardis.apps.mrtardis.backend.mrtardis as mrtardis
+#import tardis.apps.mrtardis.backend.utils as utils
 import time
 
 files = [mtzfile] + pdbfiles

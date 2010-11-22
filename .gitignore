@@ -5,3 +5,4 @@ apache/django.wsgi
 tardis.log
 tardis/settings.py
 tardis/tardisdb
+.ropeproject/*
