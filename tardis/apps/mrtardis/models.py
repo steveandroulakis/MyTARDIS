@@ -5,9 +5,11 @@ from django.contrib.auth.models import User
 from tardis.tardis_portal.models import Experiment
 # Create your models here.
 
+
 class myExperiment(Experiment):
     question = models.CharField(max_length=200)
     pub_date = models.DateTimeField('date published')
+
 
 class Job(models.Model):
     experiment_id = models.ForeignKey('tardis_portal.Experiment')
@@ -15,11 +17,12 @@ class Job(models.Model):
     jobid = models.CharField(max_length=80, primary_key=True)
     jobstatus = models.CharField(max_length=20)
 
+
 class MrTUser(models.Model):
     user = models.ForeignKey(User, unique=True)
     hpc_username = models.CharField(max_length=20)
     testedConnection = models.BooleanField()
-    
+
     def __unicode__(self):
         return self.user.username
 
