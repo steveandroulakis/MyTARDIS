@@ -53,6 +53,8 @@ from tardis.tardis_portal import models
 from tardis.tardis_portal.fields import MultiValueCommaSeparatedField
 from tardis.tardis_portal.widgets import CommaSeparatedInput, Label, Span
 
+from tardis.tardis_portal.logger import logger
+
 
 class DatafileSearchForm(forms.Form):
 
@@ -473,6 +475,7 @@ class FullExperiment(Experiment):
 
     def _fill_forms(self, data=None, initial=None, instance=None):
         if data and 'authors' in data:
+#            logger.debug("data and authors in data")
             for num, author in enumerate(data['authors']):
                 try:
                     o_author = models.Author.objects.get(name=author)
@@ -480,11 +483,11 @@ class FullExperiment(Experiment):
                     o_author = None
                 f = Author(data={'name': author}, instance=o_author)
                 self.authors.append(f)
-
+#        logger.debug("authors are " + `self.authors`)
         self.fields['authors'] = \
             MultiValueCommaSeparatedField(
             [author.fields['name'] for author in self.authors],
-                                          widget=CommaSeparatedInput())
+            widget=CommaSeparatedInput())
 
         if not data:
             return data

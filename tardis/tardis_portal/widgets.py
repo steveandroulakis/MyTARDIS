@@ -13,8 +13,10 @@ class CommaSeparatedInput(TextInput):
         value = super(CommaSeparatedInput, self).value_from_datadict(data,
                                                                      files,
                                                                      name)
-        return [v.strip(' ') for v in value.split(',')]
-
+        if value:
+            return [v.strip(' ') for v in value.split(',')]
+        else:
+            return ['']
 
 class Label(Widget):
     tag = "label"

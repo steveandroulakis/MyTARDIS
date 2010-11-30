@@ -1870,7 +1870,7 @@ def stage_files(datafiles, experiment_id,
 @login_required
 def create_experiment(request,
                       template="tardis_portal/create_experiment.html"):
-    form = FullExperiment()
+#    form = FullExperiment()
 
     form = FullExperiment(request.POST, request.FILES)
 
