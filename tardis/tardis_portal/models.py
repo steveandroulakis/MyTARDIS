@@ -285,3 +285,34 @@ class Equipment(models.Model):
 
     def __unicode__(self):
         return self.key
+
+
+## Signals... should they live in their own file?
+#  models.py has to do for now
+
+from tardis.apps.uploadify.views import *
+from tardis.tardis_portal.logger import logger
+from django.core.files import File
+from django.conf import settings
+
+
+def upload_received_handler(sender, data, **kwargs):
+    if True:
+        logger.debug("we reached the handler")
+#        logger.debug(data)
+#        logger.debug(dir(data))
+#        logger.debug(
+        logger.debug(settings.STAGING_PATH + "/" + data.name)
+        ofile = open(settings.STAGING_PATH + "/" + data.name, 'wb')
+        logger.debug("opened file for reading")
+        try:
+            byte = data.read(1)
+            while byte != "":
+                ofile.write(byte)
+                byte = data.read(1)
+        finally:
+            data.close()
+        ofile.close()
+
+upload_received.connect(upload_received_handler,
+                        dispatch_uid="yourapp.whatever.upload_received")
