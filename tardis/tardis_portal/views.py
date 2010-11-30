@@ -1918,3 +1918,59 @@ def create_experiment(request,
 
     return HttpResponse(render_response_index(request,
                         template, c))
+
+
+@login_required
+def add_dataset(request,
+                template="tardis_portal/ajax/add_dataset_to_experiment.html"):
+    """
+    adds a dataset to an existing experiment through an ajax-embedabble form.
+    """
+#    form = FullExperiment()
+
+    form = FullExperiment(request.POST, request.FILES)
+
+    # sanitize stuff
+    #
+    # basename(files['filename'][i]
+
+    if form.is_valid():
+        full_experiment = form.save(commit=False)
+
+        for ds_f in full_experiment['dataset_files']:
+            filepath = ds_f.filename
+            ds_f.url = filepath
+            ds_f.filename = os.path.basename(filepath)
+            ds_f.size = 0
+            ds_f.protocol = "file"
+        # group/owner assignment stuff, soon to be replaced
+        experiment = full_experiment['experiment']
+        full_experiment.save_m2m()
+
+        g = Group(name=experiment.id)
+        g.save()
+        exp_owner = Experiment_Owner(experiment=experiment,
+                user=request.user)
+        exp_owner.save()
+        request.user.groups.add(g)
+
+        datafiles = full_experiment['dataset_files']
+        stage_files(datafiles, experiment.id)
+
+        return HttpResponseRedirect(experiment.get_absolute_url())
+    else:
+
+        pass
+        # exp = Experiment.objects.get(id=52)
+        #
+        # form = FullExperiment(instance=exp)
+        #
+
+    c = Context({'subtitle': 'Create Experiment',
+                 'directory_listing': staging_traverse(),
+                 'user_id': request.user.id,
+                'form': form,
+              })
+
+    return HttpResponse(render_response_index(request,
+                        template, c))

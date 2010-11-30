@@ -1,4 +1,6 @@
 
+<h3>Upload files or choose dataset</h3>
+
 {% load uploadify_tags %}
 {% multi_file_upload upload_complete_url %}
 <p>
@@ -12,3 +14,9 @@ $("#uploadify").bind("allUploadsComplete", function(e, data){
 });
 
 </script>
+
+<form action="#chooseDataset">
+
+{{ datasetForm }}
+
+</form>

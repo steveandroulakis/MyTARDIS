@@ -4,10 +4,11 @@ from django.shortcuts import render_to_response
 from django.template import Context
 
 from tardis.apps.mrtardis import utils
-from tardis.apps.mrtardis.forms import HPCSetupForm
+from tardis.apps.mrtardis.forms import HPCSetupForm, MRFileSelect
 from tardis.apps.mrtardis.models import Job, MrTUser
-from tardis.tardis_portal.models import Experiment
+from tardis.tardis_portal.models import Experiment, Dataset
 from tardis.tardis_portal.views import return_response_not_found
+from tardis.tardis_portal.logger import logger
 
 
 def index(request, experiment_id):
@@ -21,7 +22,13 @@ def index(request, experiment_id):
 
 
 def startMR(request, experiment_id):
+    datasets = Dataset.objects.filter(experiment=experiment_id
+                                      ).values_list('id', 'description')
+    #logger.debug(repr(datasets))
+    datasetForm = MRFileSelect(choices=datasets)
+    #datasetForm.choices = datasets
     c = Context({
+            'datasetForm': datasetForm,
             'experiment_id': experiment_id,
             'upload_complete_url': '/apps/mrtardis/upload_complete/' +\
                 experiment_id + "/",

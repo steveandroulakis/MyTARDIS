@@ -7,6 +7,9 @@ from tardis.tardis_portal.models import Experiment
 
 
 class myExperiment(Experiment):
+    """
+    not used currently, may opt for a non-inheriting class later
+    """
     question = models.CharField(max_length=200)
     pub_date = models.DateTimeField('date published')
 
@@ -19,6 +22,9 @@ class Job(models.Model):
 
 
 class MrTUser(models.Model):
+    """
+    holds hpc log in information for a user account.
+    """
     user = models.ForeignKey(User, unique=True)
     hpc_username = models.CharField(max_length=20)
     testedConnection = models.BooleanField()

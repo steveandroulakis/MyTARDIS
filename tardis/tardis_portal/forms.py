@@ -301,7 +301,7 @@ class FullExperimentModel(UserDict):
     """
     This is a dict wrapper that store the values returned from
     the :func:`tardis.tardis_portal.forms.FullExperiment.save` function.
-    It provides a convience method for saving the model objects.
+    It provides a convenient method for saving the model objects.
     """
     def save_m2m(self):
         """

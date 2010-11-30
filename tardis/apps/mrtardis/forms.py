@@ -5,6 +5,17 @@ class HPCSetupForm(forms.Form):
     hpc_username = forms.CharField(max_length=20)
 
 
+class MRFileSelect(forms.Form):
+    """
+    Form to select dataset to run MR on.
+    """
+    dataset = forms.ChoiceField()
+
+    def __init__(self, choices):
+        super(MRFileSelect, self).__init__()
+        self.fields['dataset'].choices = choices
+
+
 # examples in comments
 class MRForm(forms.Form):
     f_value = forms.CharField(max_length=20)  # "FP"
