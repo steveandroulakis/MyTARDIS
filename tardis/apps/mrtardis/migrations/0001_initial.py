@@ -18,18 +18,28 @@ class Migration(SchemaMigration):
 
         # Adding model 'Job'
         db.create_table('mrtardis_job', (
+            ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
             ('experiment_id', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['tardis_portal.Experiment'])),
-            ('username', self.gf('django.db.models.fields.CharField')(max_length=20)),
-            ('jobid', self.gf('django.db.models.fields.CharField')(max_length=80, primary_key=True)),
+            ('jobid', self.gf('django.db.models.fields.CharField')(max_length=80)),
+            ('hpcjobid', self.gf('django.db.models.fields.CharField')(max_length=20)),
             ('jobstatus', self.gf('django.db.models.fields.CharField')(max_length=20)),
         ))
         db.send_create_signal('mrtardis', ['Job'])
+
+        # Adding M2M table for field user on 'Job'
+        db.create_table('mrtardis_job_user', (
+            ('id', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)),
+            ('job', models.ForeignKey(orm['mrtardis.job'], null=False)),
+            ('user', models.ForeignKey(orm['auth.user'], null=False))
+        ))
+        db.create_unique('mrtardis_job_user', ['job_id', 'user_id'])
 
         # Adding model 'MrTUser'
         db.create_table('mrtardis_mrtuser', (
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
             ('user', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['auth.User'], unique=True)),
             ('hpc_username', self.gf('django.db.models.fields.CharField')(max_length=20)),
+            ('testedConnection', self.gf('django.db.models.fields.BooleanField')(default=False)),
         ))
         db.send_create_signal('mrtardis', ['MrTUser'])
 
@@ -41,6 +51,9 @@ class Migration(SchemaMigration):
 
         # Deleting model 'Job'
         db.delete_table('mrtardis_job')
+
+        # Removing M2M table for field user on 'Job'
+        db.delete_table('mrtardis_job_user')
 
         # Deleting model 'MrTUser'
         db.delete_table('mrtardis_mrtuser')
@@ -86,14 +99,17 @@ class Migration(SchemaMigration):
         'mrtardis.job': {
             'Meta': {'object_name': 'Job'},
             'experiment_id': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['tardis_portal.Experiment']"}),
-            'jobid': ('django.db.models.fields.CharField', [], {'max_length': '80', 'primary_key': 'True'}),
+            'hpcjobid': ('django.db.models.fields.CharField', [], {'max_length': '20'}),
+            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            'jobid': ('django.db.models.fields.CharField', [], {'max_length': '80'}),
             'jobstatus': ('django.db.models.fields.CharField', [], {'max_length': '20'}),
-            'username': ('django.db.models.fields.CharField', [], {'max_length': '20'})
+            'user': ('django.db.models.fields.related.ManyToManyField', [], {'to': "orm['auth.User']", 'symmetrical': 'False'})
         },
         'mrtardis.mrtuser': {
             'Meta': {'object_name': 'MrTUser'},
             'hpc_username': ('django.db.models.fields.CharField', [], {'max_length': '20'}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            'testedConnection': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
             'user': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['auth.User']", 'unique': 'True'})
         },
         'mrtardis.myexperiment': {
@@ -106,11 +122,14 @@ class Migration(SchemaMigration):
             'Meta': {'object_name': 'Experiment'},
             'approved': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
             'created_by': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['auth.User']"}),
+            'created_time': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'blank': 'True'}),
             'description': ('django.db.models.fields.TextField', [], {'blank': 'True'}),
+            'end_time': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'blank': 'True'}),
             'handle': ('django.db.models.fields.TextField', [], {'null': 'True', 'blank': 'True'}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'institution_name': ('django.db.models.fields.CharField', [], {'max_length': '400'}),
             'public': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
+            'start_time': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'blank': 'True'}),
             'title': ('django.db.models.fields.CharField', [], {'max_length': '400'}),
             'update_time': ('django.db.models.fields.DateTimeField', [], {'auto_now': 'True', 'blank': 'True'}),
             'url': ('django.db.models.fields.URLField', [], {'max_length': '255'})

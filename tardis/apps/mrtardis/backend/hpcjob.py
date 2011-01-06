@@ -174,7 +174,12 @@ module load phenix
                 spacegroups = [self.parameters["space_group"]]
             else:
                 spacegroups = self.parameters["space_group"]
-            for space_group in spacegroups:
+            for sg_num in spacegroups:
+                if sg_num == "ALL":
+                    space_group = "ALL"
+                else:
+                    from tardis.apps.mrtardis.utils import sgNumNameTrans
+                    space_group = sgNumNameTrans(number=sg_num)
                 if type(self.parameters["rmsd"]).__name__ != 'list':
                     # ie. not list or tuple
                     rmsds = [self.parameters["rmsd"]]
@@ -187,8 +192,8 @@ module load phenix
                     output = pbs_head + pbs_options + pbs_commands
                     output += "echo -e \"" + parameters + "\"|" +\
                         phaser_command + " \n"
-                    jobfilename = pdbfile + "_" + space_group + "_" + rmsd +\
-                        ".jobfile"
+                    jobfilename = pdbfile + "_" + space_group + "_" + \
+                        repr(rmsd) + ".jobfile"
                     ofile = open(self.tmpdir + "/" + jobfilename, 'w')
                     ofile.write(output)
                     ofile.close()
@@ -197,15 +202,15 @@ module load phenix
     def preparePhaserInput(self, space_group, rmsd, pdb_file_path):
         f_value = self.parameters["f_value"]
         sigf_value = self.parameters["sigf_value"]
-        mol_weight = self.parameters["mol_weight"]
-        num_in_asym = self.parameters["num_in_asym"]
-        ensemble_number = self.parameters["ensemble_number"]
-        packing = self.parameters["packing"]
+        mol_weight = repr(self.parameters["mol_weight"])
+        num_in_asym = repr(self.parameters["num_in_asym"])
+        ensemble_number = repr(self.parameters["ensemble_number"])
+        packing = repr(self.parameters["packing"])
         phaserinput = ("MODE MR_AUTO\\n" + "HKLIN " + self.mtz_file_path +
                        "\\n" + "LABIN  F=" + f_value + " " + "SIGF=" +
                        sigf_value +
                        "\\n" + "TITLE " + pdb_file_path + "_" + space_group +
-                       "_" + rmsd + "\\n")
+                       "_" + repr(rmsd) + "\\n")
         if space_group == "ALL":
             phaserinput += "SGALTERNATIVE ALL\\n"
         else:
@@ -214,12 +219,12 @@ module load phenix
         phaserinput += ("COMPOSITION PROTEIN MW " + mol_weight +
                        " NUMBER " + num_in_asym + "\\n" +
                        "ENSEMBLE pdb PDBFILE " + pdb_file_path +
-                       " RMS " + rmsd + "\\n" +
+                       " RMS " + repr(rmsd) + "\\n" +
                        "SEARCH ENSEMBLE pdb NUMBER " + ensemble_number +
                         "\\n" +
                        "PACK CUTOFF " + packing + "\\n" +
                        "ROOT " + pdb_file_path + "_" + space_group + "_" +
-                       rmsd + "_result\\n")
+                       repr(rmsd) + "_result\\n")
         return phaserinput
 
     def getJobType(self):

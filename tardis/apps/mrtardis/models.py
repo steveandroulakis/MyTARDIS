@@ -16,8 +16,9 @@ class myExperiment(Experiment):
 
 class Job(models.Model):
     experiment_id = models.ForeignKey('tardis_portal.Experiment')
-    username = models.CharField(max_length=20)
-    jobid = models.CharField(max_length=80, primary_key=True)
+    user = models.ManyToManyField(User)
+    jobid = models.CharField(max_length=80)
+    hpcjobid = models.CharField(max_length=20)
     jobstatus = models.CharField(max_length=20)
 
 

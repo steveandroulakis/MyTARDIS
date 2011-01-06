@@ -3,7 +3,7 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import render_to_response
 from django.template import Context
 #from django.conf import settings
-from tardis.apps.mrtardis import utils
+import tardis.apps.mrtardis.utils as utils
 from tardis.apps.mrtardis.forms import HPCSetupForm, MRFileSelect, MRForm, RmsdForm
 from tardis.apps.mrtardis.models import Job, MrTUser
 from tardis.tardis_portal.forms import CreateDatasetCurrentExperiment
@@ -131,13 +131,14 @@ def upload_files(request):
     return render_to_response("mrtardis/upload_files.html", c)
 
 
-def MRParams(request):
+#@login_required
+def MRParams(request, dataset_id):
     """
     shows the parameter entry form,
     takes request.GET["dataset_id"] as input.
     """
 #    return True
-    dataset_id = request.GET["dataset_id"]
+    #dataset_id = request.GET["dataset_id"]
     #getMTZfile
     mtz_file = utils.get_mtz_file(dataset_id)
     mtz_params = utils.processMTZ(mtz_file.get_storage_path())
@@ -148,29 +149,40 @@ def MRParams(request):
     pdbfilelist = utils.get_pdb_files(dataset_id)
     rmsd_formfactory = formset_factory(RmsdForm)
     if request.method == 'POST':
-        param_form = MRForm(request.POST)
+        logger.debug("we're POSTing")
+        param_form = MRForm(f_choices,
+                            sigf_choices,
+                            sg_num,
+                            request.POST)
         rmsd_formset = rmsd_formfactory(request.POST)
+        logger.debug(repr(param_form.is_valid()) +
+                     repr(rmsd_formset.is_valid()) +
+                     repr(rmsd_formset.errors) +
+                     repr(request.POST))
         if param_form.is_valid() and rmsd_formset.is_valid():
-            newJob = hpcjob.HPCJob()
-            jobparameters = {"f_value": param_form.f_value,
-                             "sigf_value": param_form.sigf_value,
-                             "num_in_asym": param_form.num_in_asym,
-                             "ensemble_number": param_form.ensemble_number,
-                             "packing": param_form.packing,
-                             }
+            hpcUsername = MrTUser.objects.get(user=request.user).hpc_username
+            newJob = hpcjob.HPCJob(hpcUsername)
+            jobparameters = {
+                "f_value": param_form.cleaned_data['f_value'],
+                "sigf_value": param_form.cleaned_data['sigf_value'],
+                "num_in_asym": param_form.cleaned_data['num_in_asym'],
+                "ensemble_number": param_form.cleaned_data['ensemble_number'],
+                "packing": param_form.cleaned_data['packing'],
+                "space_group": param_form.cleaned_data['space_group'],
+                }
+            if "sg_all" in param_form.cleaned_data:
+                if param_form.cleaned_data["sg_all"] == True:
+                    jobparameters["space_group"].append("ALL")
             jobparameters["rmsd"] = []
-            for form in rmsd_formset:
-                jobparameters["rmsd"].append(form.rmsd)
-            sgarray = []
-            for sg in param_form.space_group:
-                if sg:
-                    sgarray.append(sg.value)
-            jobparameters["space_group"] = sgarray
-            jobparameters["mol_weight"] = param_form.mol_weight
-
+            for form in rmsd_formset.forms:
+                jobparameters["rmsd"].append(form.cleaned_data['rmsd'])
+            jobparameters["mol_weight"] = param_form.cleaned_data['mol_weight']
             filepaths = utils.get_pdb_files(dataset_id,
                          storagePaths=True) + [mtz_file.get_storage_path()]
+            logger.debug("params: " + repr(jobparameters))
+            logger.debug("files: " + repr(filepaths))
             newJob.stage(jobparameters, filepaths)
+
             #newJob.submit()
             #newJob save to db
             c = Context({})
@@ -181,6 +193,7 @@ def MRParams(request):
                             sg_num=sg_num)
         rmsd_formset = rmsd_formfactory()
     c = Context({
+            'dataset_id': dataset_id,
             'mtz_params': mtz_params,
             'rmsd_formset': rmsd_formset,
             'paramForm': param_form,

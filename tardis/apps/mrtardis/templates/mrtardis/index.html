@@ -32,6 +32,28 @@ $(document).ready(function() {
 	$(".startframe").hide();
 	$("a[href=#startMR]").show();
     });
+    $(".startMR").live("submitToHPC", function(event, dataset_id, formdata) {
+	$.ajax({
+	    type: "POST",
+	    url: "/apps/mrtardis/MRparams/" + dataset_id + "/",
+	    data: formdata,
+	    dataType: "html",
+	    success: function(data) {
+		$(".startMR").html(data);
+		$(".startframe").show();
+		$.get("/apps/mrtardis/jobstatus/{{ experiment_id }}",
+		      function(data) {
+			  $(".jobstatus").html(data);
+		      });
+		console.log("replaced form with new one");
+	    },
+	    error: function(XMLHttpRequest, textStatus, errorThrown) {
+		console.log(textStatus);
+		console.log(errorThrown);
+		console.log(XMLHttpRequest.responseText);
+	    }
+	});
+    });
     $(".startMR").live("loadNext", function(event, next, dataset_id) {
 	console.log("before switch");
 	switch(next)
@@ -50,8 +72,7 @@ $(document).ready(function() {
 	case "enterParams":
 	    $.ajax({
 		type: "GET",
-		url: "/apps/mrtardis/MRparams/",
-		data: {'dataset_id': dataset_id},
+		url: "/apps/mrtardis/MRparams/" + dataset_id +"/",
 		dataType: "html",
 		success: function(data) {
 		    $(".startMR").html(data);

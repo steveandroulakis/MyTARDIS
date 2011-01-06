@@ -1,6 +1,7 @@
 from django import forms
 from django.forms.formsets import formset_factory
 import tardis.apps.mrtardis.utils as utils
+from tardis.tardis_portal.logger import logger
 
 
 class HPCSetupForm(forms.Form):
@@ -24,10 +25,10 @@ class MRForm(forms.Form):
     f_value = forms.ChoiceField(label="F column")
     # "SIGFP" same functionality as f_value
     sigf_value = forms.ChoiceField(label="SIGF column")
-    mol_weight = forms.DecimalField(
+    mol_weight = forms.FloatField(
                                  label="Molecular weight")  # "11807"
     # alternative to MW, calculate MW from sequence
-    sequence = forms.CharField(max_length=2000,
+    sequence = forms.CharField(max_length=2000, required=False,
                                label="Protein sequence, if MW is not known",
                                widget=forms.Textarea(attrs={'cols': 40,
                                                             'rows': 4}))
@@ -39,7 +40,7 @@ class MRForm(forms.Form):
         widget=forms.CheckboxSelectMultiple(),
         label="Space Groups you wish to use")
     # ["P6","P61"]
-    sg_all = forms.BooleanField(label="SG-alternative All",
+    sg_all = forms.BooleanField(label="SG-alternative All", required=False,
                                 help_text="Let Phaser determine point " +
                                 "group and try all space groups of that " +
                                 "point group in addition to space groups " +
@@ -63,6 +64,7 @@ class MRForm(forms.Form):
             (sg_num, utils.sgNumNameTrans(number=sg_num))
 
     def clean(self):
+        logger.debug("starting to clean MRparam form")
         cleaned_data = self.cleaned_data
         mol_weight = cleaned_data.get("mol_weight")
 
@@ -75,11 +77,13 @@ class MRForm(forms.Form):
                 raise forms.ValidationError("Please enter either a " +
                     "number for the molecular weight or an amino acid " +
                                             "sequence for your input data.")
+        logger.debug(repr(self._errors))
+        logger.debug("ending to clean MRparam form")
         return cleaned_data
 
 
 class RmsdForm(forms.Form):
-    rmsd = forms.DecimalField(min_value=0.8, max_value=2.6)
+    rmsd = forms.FloatField(min_value=0.8, max_value=2.6)
 
 #RmsdFormset = formset_factory(RmsdForm)
 #formset = RmsdFormset()
