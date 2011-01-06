@@ -45,7 +45,7 @@ def download_datafile(request, datafile_id):
                 response = HttpResponse(wrapper,
                         mimetype='application/octet-stream')
                 response['Content-Disposition'] = \
-                    'attachment; filename=' + datafile.filename
+                    'attachment; filename="' + datafile.filename + '"'
 
                 # import os
                 # response['Content-Length'] = os.path.getsize(file_path)

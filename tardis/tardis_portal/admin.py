@@ -30,13 +30,16 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-from tardis.tardis_portal.models import *
+from tardis.tardis_portal.models import Experiment, XML_data, \
+    XSLT_docs, Dataset_File, Dataset, Schema, ParameterName, \
+    DatafileParameter, DatasetParameter, Author_Experiment, \
+    Experiment_Owner, UserProfile, DatafileParameterSet, \
+    DatasetParameterSet, ExperimentParameterSet, ExperimentParameter
 from django.contrib import admin
 
 admin.site.register(XML_data)
 admin.site.register(XSLT_docs)
 admin.site.register(Experiment)
-admin.site.register(Author)
 admin.site.register(Dataset)
 admin.site.register(Dataset_File)
 admin.site.register(Schema)
@@ -50,4 +53,3 @@ admin.site.register(ExperimentParameter)
 admin.site.register(DatafileParameterSet)
 admin.site.register(DatasetParameterSet)
 admin.site.register(ExperimentParameterSet)
-admin.site.register(Equipment)

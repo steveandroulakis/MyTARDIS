@@ -6,6 +6,7 @@ from django.template import Context
 from tardis.apps.mrtardis import utils
 from tardis.apps.mrtardis.forms import HPCSetupForm, MRFileSelect
 from tardis.apps.mrtardis.models import Job, MrTUser
+from tardis.tardis_portal.forms import CreateDatasetCurrentExperiment
 from tardis.tardis_portal.models import Experiment, Dataset
 from tardis.tardis_portal.views import return_response_not_found
 from tardis.tardis_portal.logger import logger
@@ -26,9 +27,11 @@ def startMR(request, experiment_id):
                                       ).values_list('id', 'description')
     #logger.debug(repr(datasets))
     datasetForm = MRFileSelect(choices=datasets)
+    createForm = CreateDatasetCurrentExperiment()
     #datasetForm.choices = datasets
     c = Context({
             'datasetForm': datasetForm,
+            'createForm': createForm,
             'experiment_id': experiment_id,
             'upload_complete_url': '/apps/mrtardis/upload_complete/' +\
                 experiment_id + "/",
@@ -81,12 +84,23 @@ def test_user_setup(request):
     return render_to_response("mrtardis/usersetup.html", c)
 
 
-def upload_complete(request, experiment_id):
-    cont = {
-        'numberOfFiles': request.POST['filesUploaded'],
-        'bytes': request.POST['allBytesLoaded'],
-        'speed': request.POST['speed'],
-        'errorCount': request.POST['errorCount'],
-        }
-    c = Context(cont)
-    return render_to_response("mrtardis/upload_complete.html", c)
+# def upload_complete(request, experiment_id):
+#     cont = {
+#         'numberOfFiles': request.POST['filesUploaded'],
+#         'bytes': request.POST['allBytesLoaded'],
+#         'speed': request.POST['speed'],
+#         'errorCount': request.POST['errorCount'],
+#         }
+#     c = Context(cont)
+#     return render_to_response("mrtardis/upload_complete.html", c)
+
+def MRParams(request):
+    """
+    shows the parameter entry form,
+    takes request.GET["dataset_id"] as input.
+    """
+    return True
+    dataset_id = request.GET["dataset_id"]
+
+    param_form = MRForm(f_choices, sigf_choices, sg_num)
+    return render_to_response("mrtardis/parameters.html")

@@ -1,18 +1,14 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from django.contrib import admin
-admin.autodiscover()
-from django.contrib.auth.views import login, logout
-
 from django.conf.urls.defaults import *
 from django.conf import settings
-from django.views.generic import list_detail
-
-from tardis.tardis_portal.models import Equipment
-from tardis.tardis_portal.views import getNewSearchDatafileSelectionForm
-
+from django.contrib.auth.views import login, logout
 from registration.forms import RegistrationFormUniqueEmail
 
+# Uncomment the next two lines to enable the admin:
+
+from django.contrib import admin
+admin.autodiscover()
 
 urlpatterns = patterns(
     # (r'^search/quick/$', 'tardis.tardis_portal.views.search_quick'),
@@ -26,15 +22,6 @@ urlpatterns = patterns(
     (r'^partners/$', 'tardis.tardis_portal.views.partners'),
     (r'^stats/$', 'tardis.tardis_portal.views.stats'),
     (r'^import_params/$', 'tardis.tardis_portal.views.import_params'),
-    (r'^equipment/$', list_detail.object_list,
-     {'queryset': Equipment.objects.all(),
-      'paginate_by': 15,
-      'extra_context':
-      {'searchDatafileSelectionForm': getNewSearchDatafileSelectionForm()}}),
-    (r'^equipment/(?P<object_id>\d+)/$', list_detail.object_detail,
-     {'queryset': Equipment.objects.all()}),
-    (r'^search/equipment/$',
-     'tardis.tardis_portal.views.search_equipment'),
     (r'^experiment/view/(?P<experiment_id>\d+)/$',
      'tardis.tardis_portal.views.view_experiment'),
     (r'^experiment/view/$',
@@ -96,6 +83,11 @@ urlpatterns = patterns(
     (r'media/(?P<path>.*)$', 'django.views.static.serve',
      {'document_root': settings.ADMIN_MEDIA_STATIC_DOC_ROOT}),
     (r'^admin/(.*)', admin.site.root),
-    (r'^uploadify/', include('tardis.apps.uploadify.urls')),
     (r'^apps/mrtardis/', include('tardis.apps.mrtardis.urls')),
+    (r'^upload_complete/(?P<experiment_id>\d+)/$',
+     'tardis.tardis_portal.views.upload_complete'),
+    (r'^upload/(?P<dataset_id>\d+)/$',
+     'tardis.tardis_portal.views.upload'),
+    (r'^ajax/select_files/(?P<dataset_id>\d+)/$',
+     'tardis.tardis_portal.views.select_files'),
 )

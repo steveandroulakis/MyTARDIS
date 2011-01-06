@@ -91,18 +91,6 @@ class IRDatafileSearchForm(DatafileSearchForm):
     pass
 
 
-class EquipmentSearchForm(forms.Form):
-
-    key = forms.CharField(label='Short Name',
-        max_length=30, required=False)
-    description = forms.CharField(label='Description',
-        required=False)
-    make = forms.CharField(label='Make', max_length=60, required=False)
-    model = forms.CharField(label='Model', max_length=60, required=False)
-    type = forms.CharField(label='Type', max_length=60, required=False)
-    serial = forms.CharField(label='Serial No', max_length=60, required=False)
-
-
 class ImportParamsForm(forms.Form):
 
     username = forms.CharField(max_length=400, required=True)
@@ -266,12 +254,7 @@ class PostfixedForm:
 class Author_Experiment(forms.ModelForm):
     class Meta:
         model = models.Author_Experiment
-        fields = ('order',)
-
-
-class Author(forms.ModelForm):
-    class Meta:
-        model = models.Author
+        exclude = ('experiment',)
 
 
 class Dataset(PostfixedForm, forms.ModelForm):
@@ -280,6 +263,16 @@ class Dataset(PostfixedForm, forms.ModelForm):
     class Meta:
         model = models.Dataset
         exclude = ('experiment',)
+
+
+class CreateDatasetCurrentExperiment(forms.ModelForm):
+
+    class Meta:
+        model = models.Dataset
+        exclude = ("experiment",)
+        widgets = {
+            'description': forms.Textarea(attrs={'cols': 40, 'rows': 1}),
+        }
 
 
 class Dataset_File(PostfixedForm, forms.ModelForm):
@@ -312,8 +305,6 @@ class FullExperimentModel(UserDict):
         'dataset_files': dataset_files}
         """
         self.data['experiment'].save()
-        for a in self.data['authors']:
-            a.save()
         for ae in self.data['author_experiments']:
             ae.experiment = ae.experiment
             ae.save()
@@ -348,17 +339,14 @@ class FullExperiment(Experiment):
     internal dataset file fields are prefixed with `file_`. These
     are parsed out of the post data and added to the form as internal
     lists.
-
     """
-    re_post_data = re.compile(
-        '(?P<form>[^_]*)_(?P<field>.*)\[(?P<number>[\d]+)\]$')
-    dataset_field_translation = {"description": "dataset_description"}
+    re_post_data = re.compile('(?P<form>[^_]*)_(?P<field>.*)\[(?P<number>[\d]+)\]$')
     base_fields = {}
 
     def __init__(self, data=None, files=None, auto_id='%s', prefix=None,
                  initial=None, error_class=ErrorList, label_suffix=':',
                  empty_permitted=False, instance=None, extra=1):
-        self.authors = []
+        self.author_experiments = []
         self.datasets = {}
         self.dataset_files = {}
         self.__exp_fields = {}
@@ -374,13 +362,12 @@ class FullExperiment(Experiment):
                                              label_suffix=label_suffix,
                                              empty_permitted=False)
 
-        initial = self._parse_initial(initial)
         post_data = self._parse_post(data)
 
         if data:
-            self._fill_forms(post_data, initial)
+            self._fill_forms(post_data)
         else:
-            self._fill_forms(post_data, initial)
+            self._fill_forms(post_data)
             self._initialise_from_instance(instance)
             # TODO, needs to start counting from where parse_form stops
             if not self.datasets:
@@ -401,12 +388,11 @@ class FullExperiment(Experiment):
         """
         if not experiment:
             return
-        authors = experiment.authors.all()
-        self.authors = [Author(instance=a) for a in authors]
-        self.initial['authors'] = ', '.join([a.name for a in authors])
+        authors = experiment.author_experiment_set.all()
+        self.authors_experiments = [Author_Experiment(instance=a) for a in authors]
+        self.initial['authors'] = ', '.join([a.author for a in authors])
         self.fields['authors'] = \
-            MultiValueCommaSeparatedField(
-            [author.fields['name'] for author in self.authors],
+            MultiValueCommaSeparatedField([author.fields['author'] for author in self.author_experiments],
                                           widget=CommaSeparatedInput())
 
         for i, ds in enumerate(experiment.dataset_set.all()):
@@ -473,21 +459,27 @@ class FullExperiment(Experiment):
                 parsed['experiment'][k] = v
         return parsed
 
-    def _fill_forms(self, data=None, initial=None, instance=None):
+    def _fill_forms(self, data=None):
         if data and 'authors' in data:
-#            logger.debug("data and authors in data")
+            if self.instance:
+                o_author_experiments = \
+                    self.instance.author_experiment_set.all()
+            else:
+                o_author_experiments = []
             for num, author in enumerate(data['authors']):
                 try:
-                    o_author = models.Author.objects.get(name=author)
-                except models.Author.DoesNotExist:
-                    o_author = None
-                f = Author(data={'name': author}, instance=o_author)
-                self.authors.append(f)
-#        logger.debug("authors are " + `self.authors`)
+                    o_ae = o_author_experiments[num]
+                except IndexError:
+                    o_ae = models.Author_Experiment()
+                    o_ae.experiment = self.instance
+                f = Author_Experiment(data={'author': author,
+                                            'order': num},
+                                      instance=o_ae)
+                self.author_experiments.append(f)
+
         self.fields['authors'] = \
-            MultiValueCommaSeparatedField(
-            [author.fields['name'] for author in self.authors],
-            widget=CommaSeparatedInput())
+            MultiValueCommaSeparatedField([author.fields['author'] for author in self.author_experiments],
+                                          widget=CommaSeparatedInput())
 
         if not data:
             return data
@@ -527,12 +519,6 @@ class FullExperiment(Experiment):
                 self._add_datafile_form(number, d)
 
         return data
-
-    def _translate_dsfieldname(self, name, number):
-        """
-        return the dataset forms translated field name
-        """
-        return self.dataset_field_translation[name] + '[' + str(number) + ']'
 
     def _add_dataset_form(self, number, form):
         self.datasets[number] = form
@@ -577,13 +563,8 @@ class FullExperiment(Experiment):
         datasets = []
         dataset_files = []
 
-        for num, author in enumerate(self.authors):
-            o_author = author.save(commit=commit)
-            authors.append(o_author)
-            o_ae = models.Author_Experiment()
-            o_ae.experiment = experiment
-            o_ae.author = o_author
-            ae = Author_Experiment(data={'order': num}, instance=o_ae)
+        for ae in self.author_experiments:
+            ae.instance.experiment = ae.instance.experiment
             o_ae = ae.save(commit=commit)
             author_experiments.append(o_ae)
 
@@ -624,11 +605,11 @@ class FullExperiment(Experiment):
             return not bool(self.errors)
 
         # TODO since this is a compound field, this should merge the errors
-        for author in self.authors:
-            for name, error in author.errors.items():
-                if isinstance(author.fields[name], ModelChoiceField):
+        for ae in self.author_experiments:
+            for name, error in ae.errors.items():
+                if isinstance(ae.fields[name], ModelChoiceField):
                     continue
-                if author.is_bound and bool(author.errors[name]):
+                if ae.is_bound and bool(ae.errors[name]):
                     return False
 
         for dataset, files in self.get_datasets():
@@ -652,9 +633,8 @@ def createSearchDatafileForm(searchQueryType):
     if searchQueryType in constants.SCHEMA_DICT:
         parameterNames = \
             ParameterName.objects.filter(
-            schema__namespace__in=[
-                    constants.SCHEMA_DICT[searchQueryType]['datafile'],
-                    constants.SCHEMA_DICT[searchQueryType]['dataset']],
+            schema__namespace__in=[constants.SCHEMA_DICT[searchQueryType] \
+            ['datafile'], constants.SCHEMA_DICT[searchQueryType]['dataset']],
             is_searchable='True')
 
         fields = {}
@@ -703,7 +683,6 @@ def createSearchDatafileForm(searchQueryType):
 
 def createSearchExperimentForm():
 
-    from django.forms.extras.widgets import SelectDateWidget
     from tardis.tardis_portal.models import ParameterName
     from tardis.tardis_portal import constants
 
@@ -723,10 +702,8 @@ def createSearchExperimentForm():
             max_length=20, required=False)
     fields['institutionName'] = forms.CharField(label='Institution Name',
             max_length=20, required=False)
-    fields['creator'] = forms.CharField(label='Author\'s Name',
+    fields['creator'] = forms.CharField(label="Author's Name",
             max_length=20, required=False)
-    fields['date'] = forms.DateTimeField(label='Experiment Date',
-            widget=SelectDateWidget(), required=False)
 
     for parameterName in parameterNames:
         if parameterName.is_numeric:

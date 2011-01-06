@@ -30,6 +30,8 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+from urlparse import urljoin, urlparse
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.safestring import SafeUnicode
@@ -50,14 +52,6 @@ class XSLT_docs(models.Model):
         return self.xmlns
 
 
-class Author(models.Model):
-
-    name = models.CharField(max_length=255, primary_key=True)
-
-    def __unicode__(self):
-        return self.name
-
-
 class Experiment(models.Model):
 
     url = models.URLField(verify_exists=False, max_length=255)
@@ -72,7 +66,6 @@ class Experiment(models.Model):
     created_by = models.ForeignKey(User)
     handle = models.TextField(null=True, blank=True)
     public = models.BooleanField()
-    authors = models.ManyToManyField(Author, through='Author_Experiment')
 
     def __unicode__(self):
         return self.title
@@ -96,11 +89,14 @@ class Experiment_Owner(models.Model):
 class Author_Experiment(models.Model):
 
     experiment = models.ForeignKey(Experiment)
-    author = models.ForeignKey(Author)
+    author = models.CharField(max_length=255)
     order = models.PositiveIntegerField()
 
+    class Meta:
+        ordering = ('order', )
+
     def __unicode__(self):
-        return SafeUnicode(self.author.name) + ' | ' \
+        return SafeUnicode(self.author) + ' | ' \
             + SafeUnicode(self.experiment.id) + ' | ' \
             + SafeUnicode(self.order)
 
@@ -119,6 +115,18 @@ class Dataset(models.Model):
 
 
 class Dataset_File(models.Model):
+    """
+    :attribute: dataset: the foreign key to the
+       :class:`tardis.tardis_portal.models.Dataset`
+    :attribute: filename: the name of the file, excluding the path.
+    :attribute: url: the url that the datafile is located at
+    :attribute: size: the size of the file.
+    :attribute: protocol: the protocol used to access the file.
+
+    The `protocol` field is only used for rendering the download link, this
+    done by insterting the protocol into the url generated to the download
+    location.
+    """
 
     dataset = models.ForeignKey(Dataset)
     filename = models.CharField(max_length=400)
@@ -129,6 +137,22 @@ class Dataset_File(models.Model):
 
     def __unicode__(self):
         return self.filename
+
+    def get_download_url(self):
+        from django.core.urlresolvers import reverse, get_script_prefix
+
+        if urlparse(self.url).scheme and not self.url.startswith('file://'):
+            return self.url
+
+        url = reverse('tardis.tardis_portal.download.download_datafile',
+                      None, (), {'datafile_id': self.id})
+
+        if self.protocol:
+            prefix_len = len(get_script_prefix())
+            url = '/'.join(s.strip('/') for s in [url[:prefix_len],
+                                                  self.protocol,
+                                                  url[prefix_len:]])
+        return url
 
 
 class Schema(models.Model):
@@ -281,38 +305,8 @@ class Equipment(models.Model):
     serial = models.CharField(max_length=60, blank=True)
     comm = models.DateField(null=True, blank=True)
     decomm = models.DateField(null=True, blank=True)
-    url = models.URLField(null=True, blank=True, verify_exists=False, max_length=255)
+    url = models.URLField(null=True, blank=True,
+                          verify_exists=False, max_length=255)
 
     def __unicode__(self):
         return self.key
-
-
-## Signals... should they live in their own file?
-#  models.py has to do for now
-
-from tardis.apps.uploadify.views import *
-from tardis.tardis_portal.logger import logger
-from django.core.files import File
-from django.conf import settings
-
-
-def upload_received_handler(sender, data, **kwargs):
-    if True:
-        logger.debug("we reached the handler")
-#        logger.debug(data)
-#        logger.debug(dir(data))
-#        logger.debug(
-        logger.debug(settings.STAGING_PATH + "/" + data.name)
-        ofile = open(settings.STAGING_PATH + "/" + data.name, 'wb')
-        logger.debug("opened file for reading")
-        try:
-            byte = data.read(1)
-            while byte != "":
-                ofile.write(byte)
-                byte = data.read(1)
-        finally:
-            data.close()
-        ofile.close()
-
-upload_received.connect(upload_received_handler,
-                        dispatch_uid="yourapp.whatever.upload_received")

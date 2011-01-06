@@ -32,6 +32,24 @@ $(document).ready(function() {
 	$(".startframe").hide();
 	$("a[href=#startMR]").show();
     });
+    $("a[href=#enterParams]").live("click", function() {
+	console.log(dataset_id);
+	$.ajax({
+	    type: "GET",
+	    url: "/apps/mrtardis/MRparams/",
+	    data: {'dataset_id': dataset_id},
+	    dataType: "html",
+	    success: function(data) {
+		$(".startMR").html(data);
+		$(".startframe").show();
+	    },
+	    error: function(XMLHttpRequest, textStatus, errorThrown) {
+		console.log(textStatus);
+		console.log(errorThrown);
+		console.log(XMLHttpRequest.responseText);
+	    }
+	});
+    });
 });
 
 
@@ -52,7 +70,7 @@ $(document).ready(function() {
   <div class="startMR">
 
   </div>
-  <p >
+  <p style="text-align: right;" >
     <a href="#cancelMR">Cancel</a>
   </p>
 

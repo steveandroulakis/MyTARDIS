@@ -1,22 +1,54 @@
-
-<h3>Upload files or choose dataset</h3>
-
-{% load uploadify_tags %}
-{% multi_file_upload upload_complete_url %}
-<p>
-<a href="javascript:$('#fileInput').uploadifyUpload();">Upload Files</a>
-</p>
-
 <script type="text/javascript">
+var dataset_id = -1;
+$(document).ready(function() {
+    $("a[href=#selectDataset]").click(function() {
+	dataset_id = $("#id_dataset").val();
+	$("#selectedDataset").text($("#id_dataset :selected").text());
+	$("#uploadContinue").show();
+	$("#chooseDataset").hide();
+    });
+		$("#uploadify").live("allUploadsComplete", function(e, data){
+		   // alert(data);
+		    var results = "<p>Successfully uploaded " +
+			data.filesUploaded + " files.</p>";
+		    $("#uploadContinue").html(results +
+					      "<h3>Uploads complete</h3>" +
+                      "<p><a href=\"#upload\">Upload more files</a> -" +
+		      " <a href=\"#enterParams\">Continue</a></p>");
+		});
+    $("a[href=#upload]").click(function() {
+//	$("#selectedDataset").text("ID: ");
+	$.ajax({
+	    type: "GET",
+	    url: "/ajax/select_files/" + dataset_id,
+	    dataType: "html",
+	    success: function(data) {
+		$("#uploadContinue").html(data);
+	    }
+	});
+    });
 
-$("#uploadify").bind("allUploadsComplete", function(e, data){
-    echo("bound");
+    $("#uploadContinue").hide();
 });
-
 </script>
 
-<form action="#chooseDataset">
+<div id="chooseDataset">
+<h3>Choose existing dataset</h3>
+  <form>
 
-{{ datasetForm }}
+  {{ datasetForm }}
+<a href="#selectDataset">Select</a>
 
 </form>
+<h3>or create a new one</h3>
+<form action="#createDataset">
+  {{ createForm }}
+<input type="submit" value="Create" />
+</form>
+</div>
+<div id="uploadContinue">
+  <h3>Upload files to dataset "<span id="selectedDataset"></span>" if necessary or continue</h3>
+  <p>
+    <a href="#upload">Upload files</a> - <a href="#enterParams">Continue</a>
+  </p>
+</div>

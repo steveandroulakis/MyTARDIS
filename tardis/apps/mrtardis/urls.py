@@ -13,5 +13,6 @@ urlpatterns = patterns('',
                         'tardis.apps.mrtardis.views.jobstatus'),
                        (r'^upload_complete/(?P<experiment_id>\d+)/$',
                         'tardis.apps.mrtardis.views.upload_complete'),
-
-)
+                       (r'^MRparams/$',
+                        'tardis.apps.mrtardis.views.MRParams'),
+                       )

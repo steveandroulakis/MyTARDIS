@@ -443,34 +443,44 @@ class ModelTestCase(TestCase):
 
     def test_authors(self):
         from tardis.tardis_portal import models
+        exp = models.Experiment(title='test exp2',
+                                institution_name='monash',
+                                created_by=self.user,
+                                )
+        exp.save()
+
+        models.Author_Experiment(experiment=exp,
+                                 author='nigel',
+                                 order=0).save()
+
         exp = models.Experiment(title='test exp1',
                                 institution_name='monash',
                                 created_by=self.user,
                                 )
         exp.save()
 
-        a1 = models.Author(name="steve")
-        a1.save()
-
-        a2 = models.Author(name="russell")
-        a2.save()
-
         ae1 = models.Author_Experiment(experiment=exp,
-                                       author=a1,
-                                       order=0)
+                                       author='steve',
+                                       order=100)
         ae1.save()
 
         ae2 = models.Author_Experiment(experiment=exp,
-                                       author=a2,
+                                       author='russell',
                                        order=1)
         ae2.save()
 
-        authors = exp.authors.all()
+        ae3 = models.Author_Experiment(experiment=exp,
+                                       author='uli',
+                                       order=50)
+        ae3.save()
+
+        authors = exp.author_experiment_set.all()
 
         # confirm that there are 2 authors
-        self.assertEqual(len(authors), 2)
-        self.assertTrue(a1 in authors)
-        self.assertTrue(a2 in authors)
+        self.assertEqual(len(authors), 3)
+        self.assertTrue(ae1 in authors)
+        self.assertTrue(ae2 in authors)
+        self.assertTrue(ae3 == authors[1])
 
     def test_datafile(self):
         from tardis.tardis_portal import models
@@ -488,13 +498,44 @@ class ModelTestCase(TestCase):
 
         df_file = models.Dataset_File(dataset=dataset,
                                       filename='file.txt',
-                                      url='file://path/file.txt',
+                                      url='path/file.txt',
                                       )
         df_file.save()
         self.assertEqual(df_file.filename, 'file.txt')
-        self.assertEqual(df_file.url, 'file://path/file.txt')
+        self.assertEqual(df_file.url, 'path/file.txt')
+        self.assertEqual(df_file.protocol, '')
         self.assertEqual(df_file.dataset, dataset)
         self.assertEqual(df_file.size, '')
+        self.assertEqual(df_file.get_download_url(), '/download/datafile/1/')
+
+        df_file = models.Dataset_File(dataset=dataset,
+                                      filename='file1.txt',
+                                      url='path/file1.txt',
+                                      protocol='vbl',
+                                      )
+        df_file.save()
+        self.assertEqual(df_file.filename, 'file1.txt')
+        self.assertEqual(df_file.url, 'path/file1.txt')
+        self.assertEqual(df_file.protocol, 'vbl')
+        self.assertEqual(df_file.dataset, dataset)
+        self.assertEqual(df_file.size, '')
+        self.assertEqual(df_file.get_download_url(),
+                         '/vbl/download/datafile/2')
+
+        df_file = models.Dataset_File(dataset=dataset,
+                                      filename='file1.txt',
+                                      url='http://localhost:8080/filestore/file1.txt',
+                                      protocol='',
+                                      )
+        df_file.save()
+        self.assertEqual(df_file.filename, 'file1.txt')
+        self.assertEqual(df_file.url,
+                         'http://localhost:8080/filestore/file1.txt')
+        self.assertEqual(df_file.protocol, '')
+        self.assertEqual(df_file.dataset, dataset)
+        self.assertEqual(df_file.size, '')
+        self.assertEqual(df_file.get_download_url(),
+                         'http://localhost:8080/filestore/file1.txt')
 
 
 class ExperimentFormTestCase(TestCase):
@@ -534,11 +575,8 @@ class ExperimentFormTestCase(TestCase):
                                 )
         exp.save()
         for i, a in enumerate(data['authors'].split(', ')):
-            author = models.Author(name=a)
-            author.save()
-
             ae = models.Author_Experiment(experiment=exp,
-                                          author=author,
+                                          author=a,
                                           order=i)
             ae.save()
 
@@ -614,10 +652,11 @@ class ExperimentFormTestCase(TestCase):
         self.assertEqual(e.description, example_post['description'])
 
         # test there are 2 authors
-        self.assertEqual(len(e.authors.all()), 2)
+        self.assertEqual(len(e.author_experiment_set.all()), 2)
 
         # check we can get one of the authors back
-        self.assertEqual(e.authors.get(name='steve').name, 'steve')
+        self.assertEqual(e.author_experiment_set.get(author='steve').author,
+                         'steve')
 
         # check both datasets have been saved
         ds = models.Dataset.objects.filter(experiment=exp['experiment'].pk)
@@ -787,14 +826,6 @@ class ExperimentFormTestCase(TestCase):
 
         self.assertTrue(value % "russell, steve" in str(f['authors']))
 
-    def test_field_translation(self):
-        from tardis.tardis_portal import forms
-        f = forms.FullExperiment()
-        self.assertEqual(f._translate_dsfieldname('description', 10),
-                         'dataset_description[10]')
-        self.assertEqual(f._translate_dsfieldname('description', '1'),
-                         'dataset_description[1]')
-
 
 class TraverseTestCase(TestCase):
     dirs = ['dir1', 'dir2', path.join('dir2', 'subdir'), 'dir3']
@@ -827,17 +858,12 @@ class TraverseTestCase(TestCase):
 
     def test_traversal(self):
         from tardis.tardis_portal import views
-        result = '<ul><li id="phtml_1"><a>My Files</a><ul>\
-<li id="dir1"><a>dir1</a><ul><li id="dir1/file1"><a>file1</a>\
-</li></ul></li><li id="dir2"><a>dir2</a><ul><li id="dir2/file2">\
-<a>file2</a></li><li id="dir2/file3"><a>file3</a></li><li id="dir2/subdir">\
-<a>subdir</a><ul><li id="dir2/subdir/file4"><a>file4</a></li></ul></li></ul>\
-</li><li id="dir3"><a>dir3</a><ul></ul></li><li id="directory"><a>directory\
-</a><ul><li id="directory/t"><a>t</a></li><li id="directory/testfile"><a>\
-testfile</a></li><li id="directory/tt"><a>tt</a></li></ul></li>\
-<li id="site.db"><a>site.db</a></li><li id="site1"><a>site1</a></li>\
-<li id="site2"><a>site2</a></li><li id="site3"><a>site3</a></li>\
-<li id="site4"><a>site4</a></li></ul></li></ul>'
+        result = '<ul><li id="phtml_1"><a>My Files</a><ul><li id="dir1">\
+<a>dir1</a><ul><li id="dir1/file1"><a>file1</a></li></ul></li><li id="dir2">\
+<a>dir2</a><ul><li id="dir2/file2"><a>file2</a></li><li id="dir2/file3">\
+<a>file3</a></li><li id="dir2/subdir"><a>subdir</a><ul>\
+<li id="dir2/subdir/file4"><a>file4</a></li></ul></li></ul></li>\
+<li id="dir3"><a>dir3</a><ul></ul></li></ul></li></ul>'
         self.assertEqual(views.staging_traverse(), result)
 
 
