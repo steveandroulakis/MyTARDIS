@@ -1,0 +1,28 @@
+<script type="text/javascript" src="/site_media/js/jquery.formset.min.js"></script>
+<script type="text/javascript">
+<!--
+$('.rmsd-form').formset({'addText':"Add another RMSD value"});
+//-->
+</script>
+
+<p>
+MTZ File name: {{ fileName }} <br/>
+Space group in MTZ file: {{ spacegroupname }}<br/>
+PDB files to be used: {{ pdbfilelist|join:", " }}
+</p>
+<form>
+  <table>
+    {{ paramForm }}
+<tr><td colspan='2'>--- Add as many RMSD values as you like ---</td></tr>
+    {% for form in rmsd_formset.forms %}
+      <tr id="{{ form.prefix }}-row" class="rmsd-form">
+	<th><label for="{{ form.prefix }}-rmsd">RMSD:</label></th>
+	<td>{{ form.rmsd }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+  {{ rmsd_form.management_form }}
+  <div>
+    <input type="submit" value=" Run MR &raquo; " />
+  </div>
+</form>

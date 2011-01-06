@@ -1,0 +1,72 @@
+<script type="text/javascript">
+$(document).ready(function() {
+    console.log("loadinglist1");
+    function loadExistingFiles() {
+	$.ajax({
+	    type: "GET",
+	    url: "/ajax/datafile_list/" + {{ dataset_id }} + "/",
+	    dataType: "html",
+	    success: function(data) {
+		console.log("loadinglist2");
+		$("#existingFiles").html(data);
+	    }
+	});
+    }
+    loadExistingFiles();
+    $("a[href=#upload]").click(function() {
+//	$("#selectedDataset").text("ID: ");
+	$.ajax({
+	    type: "GET",
+	    url: "/ajax/select_files/" + {{ dataset_id }},
+	    dataType: "html",
+	    success: function(data) {
+		$("#uploadOptions").html(data);
+	    }
+	});
+    });
+    $("#uploadify").live("allUploadsComplete", function(e, data){
+	// alert(data);
+	var results = "<p>Successfully uploaded " +
+	    data.filesUploaded + " files.</p>";
+	$("#uploadOptions").html(results +
+			  "<p><a href=\"#upload\">Upload more files</a> -" +
+			  " <a href=\"#enterParams\">Continue</a></p>");
+	loadExistingFiles();
+
+    });
+    $("a[href=#enterParams]").live("click", function() {
+	console.log("continuing");
+	$(".startMR").trigger("loadNext", ["enterParams", {{dataset_id}}]);
+    });
+
+});
+</script>
+<div id="uploadContinue">
+  {% if has_mtz_file or has_pdb_file %}
+    <h3>You selected these files for the molecular replacement:</h3>
+    {% if has_mtz_file %}
+      <p>MTZ file: {{ mtzfilename }}</p>
+    {% else %}
+      <p>Please upload an MTZ file</p>
+    {% endif %}
+    {% if has_pdb_file %}
+      <p>PDB filenames: {{ pdbfilenames|join:", " }}</p>
+    {% else %}
+      <p>Please upload PDB files or a zip of pdb files.</p>
+    {% endif %}
+  {% else %}
+    <p>Please upload an MTZ file and PDB files or a zip of pdb files.</p>
+  {% endif %}
+  <h3>Upload files to dataset "<span id="selectedDataset">{{ dataset_name }}</span>" if
+  necessary or continue</h3>
+  <p id="uploadOptions">
+    <a href="#upload">Upload files</a>
+  {% if has_mtz_file and has_pdb_file %}
+    <b><a href="#enterParams">Continue</a></b>
+  {% endif %}
+  </p>
+  <p><b>Files already in dataset:</b><br/>
+  <div id="existingFiles">
+  </div>
+  </p>
+</div>

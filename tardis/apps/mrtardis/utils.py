@@ -1,9 +1,11 @@
 from tardis.apps.mrtardis.models import MrTUser, Job
 #from django.contrib.auth.models import User
 
+from tardis.tardis_portal.models import Dataset_File
 import tardis.apps.mrtardis.backend.hpc as hpc
 import tardis.apps.mrtardis.backend.hpcjob as hpcjob
 import tardis.apps.mrtardis.backend.secrets as secrets
+import zipfile
 #from tardis.tardis_portal.logger import logger
 
 
@@ -166,3 +168,72 @@ def calcMW(sequence):
     for aa in sequence:
         mw += MWtable[aa]
     return mw
+
+
+def get_mtz_file(dataset_id):
+    """Returns the first MTZ file it finds in the dataset"""
+    mtzquery = Dataset_File.objects.filter(dataset__pk=dataset_id,
+                                           filename__iendswith=".mtz")
+    if len(mtzquery) > 0:
+        return mtzquery[0]
+    else:
+        return None
+
+
+def get_pdb_files(dataset_id, storagePaths=False):
+    """
+    Return list of pdbfiles contained in dataset. Returns pdb filenames
+    including the ones in zip files by default.
+    If storagePaths = True, return zipfiles unopend if
+    they contain pdb files and all files as their full filesystem paths.
+    """
+    pdbfilenames = []
+    zipquery = Dataset_File.objects.filter(dataset__pk=dataset_id,
+                                           filename__iendswith=".zip")
+    if len(zipquery) > 0:
+        for zipfileobj in zipquery:
+            zippath = zipfileobj.get_storage_path()
+            thiszip = zipfile.ZipFile(zippath, 'r')
+            for filename in thiszip.namelist():
+                if filename.endswith((".pdb", ".PDB")) and \
+                        not filename.startswith("__"):
+                    if storagePaths:
+                        pdbfilenames.append(zippath)
+                        thiszip.close()
+                        break
+                    else:
+                        pdbfilenames.append(filename)
+            thiszip.close()
+    pdbquery = Dataset_File.objects.filter(dataset__pk=dataset_id,
+                                           filename__iendswith=".pdb")
+    if len(pdbquery) > 0:
+        for pdbfileobj in pdbquery:
+            if storagePaths:
+                pdbfilenames.append(pdbfileobj.get_storage_path())
+            else:
+                pdbfilenames.append(pdbfileobj.filename)
+    return pdbfilenames
+
+
+def processMTZ(mtzfile):
+    """extract data from metadata block of mtz file"""
+    #based on http://www.ccp4.ac.uk/html/mtzformat.html#fileformat
+    metadata = extractMetaDataFromMTZFile(mtzfile)
+    parameters = dict()
+    parameters["f_value"] = []
+    parameters["sigf_value"] = []
+    for line in metadata:
+        first_space = line.find(" ")
+        if len(line) > first_space + 1 + 30 + 1 and line[
+            first_space + 1 + 30 + 1] == "F":
+            parameters["f_value"].append(
+                line[7:first_space + 1 + 30 + 1].strip())
+        elif len(line) > first_space + 1 + 30 + 1 and line[
+            first_space + 1 + 30 + 1] == "Q":
+            parameters["sigf_value"].append(
+                    line[7:first_space + 1 + 30 + 1].strip())
+        elif line.startswith("SYMINF"):
+            fields = line.split()
+            #print fields[4]
+            parameters["spacegroup"] = int(fields[4])
+    return parameters

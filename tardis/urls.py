@@ -90,4 +90,5 @@ urlpatterns = patterns(
      'tardis.tardis_portal.views.upload'),
     (r'^ajax/select_files/(?P<dataset_id>\d+)/$',
      'tardis.tardis_portal.views.select_files'),
-)
+    (r'^ajax/create_dataset/$', 'tardis.tardis_portal.views.createDataset'),
+    )

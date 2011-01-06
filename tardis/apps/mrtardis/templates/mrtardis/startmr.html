@@ -3,52 +3,45 @@ var dataset_id = -1;
 $(document).ready(function() {
     $("a[href=#selectDataset]").click(function() {
 	dataset_id = $("#id_dataset").val();
-	$("#selectedDataset").text($("#id_dataset :selected").text());
-	$("#uploadContinue").show();
-	$("#chooseDataset").hide();
+	//$("#selectedDataset").text($("#id_dataset :selected").text());
+//	var loadNext = jQuery.Event("loadNext");
+	$(".startMR").html("");
+	$(".startMR").trigger("loadNext", ["upload", dataset_id]);
+	//$("#chooseDataset").hide();
     });
-		$("#uploadify").live("allUploadsComplete", function(e, data){
-		   // alert(data);
-		    var results = "<p>Successfully uploaded " +
-			data.filesUploaded + " files.</p>";
-		    $("#uploadContinue").html(results +
-					      "<h3>Uploads complete</h3>" +
-                      "<p><a href=\"#upload\">Upload more files</a> -" +
-		      " <a href=\"#enterParams\">Continue</a></p>");
-		});
-    $("a[href=#upload]").click(function() {
+    $("a[href=#createDataset]").click(function() {
 //	$("#selectedDataset").text("ID: ");
 	$.ajax({
 	    type: "GET",
-	    url: "/ajax/select_files/" + dataset_id,
-	    dataType: "html",
+	    url: "/ajax/create_dataset/",
+	    data: {
+		'experiment_id': {{ experiment_id }},
+		'description': $("#id_description").val(),
+	    },
+	    dataType: "json",
 	    success: function(data) {
-		$("#uploadContinue").html(data);
+		dataset_id = data.dataset_id,
+		$("#selectedDataset").text($("#id_description").val());
+		console.log("before trigger");
+		$(".startMR").trigger("loadNext", ["upload", dataset_id]);
+		//$("#chooseDataset").hide();
 	    }
 	});
     });
-
-    $("#uploadContinue").hide();
 });
 </script>
 
 <div id="chooseDataset">
 <h3>Choose existing dataset</h3>
-  <form>
+  <form id="datasetForm">
 
   {{ datasetForm }}
 <a href="#selectDataset">Select</a>
 
 </form>
 <h3>or create a new one</h3>
-<form action="#createDataset">
+<form id="createDSForm">
   {{ createForm }}
-<input type="submit" value="Create" />
+  <a href="#createDataset">Create</a>
 </form>
-</div>
-<div id="uploadContinue">
-  <h3>Upload files to dataset "<span id="selectedDataset"></span>" if necessary or continue</h3>
-  <p>
-    <a href="#upload">Upload files</a> - <a href="#enterParams">Continue</a>
-  </p>
 </div>

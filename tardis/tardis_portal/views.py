@@ -35,6 +35,8 @@ from django.core.paginator import Paginator, InvalidPage, EmptyPage
 from tardis.tardis_portal.models import *
 from tardis.tardis_portal import constants
 from django.db.models import Sum
+from django.utils import simplejson
+
 
 import urllib
 import urllib2
@@ -2102,3 +2104,12 @@ def select_files(request, dataset_id):
             }
     c = Context(cont)
     return render_to_response('tardis_portal/ajax/select_files.html', c)
+
+
+def createDataset(request):
+    newDataset = Dataset()
+    newDataset.experiment_id = request.GET['experiment_id']
+    newDataset.description = request.GET['description']
+    newDataset.save()
+    return HttpResponse(simplejson.dumps({'dataset_id': newDataset.id}),
+                        mimetype="application/json")

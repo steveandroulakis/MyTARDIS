@@ -32,23 +32,42 @@ $(document).ready(function() {
 	$(".startframe").hide();
 	$("a[href=#startMR]").show();
     });
-    $("a[href=#enterParams]").live("click", function() {
-	console.log(dataset_id);
-	$.ajax({
-	    type: "GET",
-	    url: "/apps/mrtardis/MRparams/",
-	    data: {'dataset_id': dataset_id},
-	    dataType: "html",
-	    success: function(data) {
-		$(".startMR").html(data);
-		$(".startframe").show();
-	    },
-	    error: function(XMLHttpRequest, textStatus, errorThrown) {
-		console.log(textStatus);
-		console.log(errorThrown);
-		console.log(XMLHttpRequest.responseText);
-	    }
-	});
+    $(".startMR").live("loadNext", function(event, next, dataset_id) {
+	console.log("before switch");
+	switch(next)
+	{
+	case "upload":
+	    $.ajax({
+		type: "GET",
+		url: "/apps/mrtardis/upload_files/",
+		data: {'dataset_id': dataset_id},
+		dataType: "html",
+		success: function(data) {
+		    $(".startMR").html(data);
+		}
+	    });
+	    break;
+	case "enterParams":
+	    $.ajax({
+		type: "GET",
+		url: "/apps/mrtardis/MRparams/",
+		data: {'dataset_id': dataset_id},
+		dataType: "html",
+		success: function(data) {
+		    $(".startMR").html(data);
+		    $(".startframe").show();
+		},
+		error: function(XMLHttpRequest, textStatus, errorThrown) {
+		    console.log(textStatus);
+		    console.log(errorThrown);
+		    console.log(XMLHttpRequest.responseText);
+		}
+	    });
+	    break;
+	default:
+	    console.error("next event not matched");
+	    break;
+	}
     });
 });
 
@@ -64,7 +83,7 @@ $(document).ready(function() {
   }
 </style>
 <p>
-  <a href="#startMR">Start new Molecular Replacement</a>
+ <b> <a href="#startMR">Start new Molecular Replacement</a></b>
 </p>
 <div class="startframe">
   <div class="startMR">
@@ -75,7 +94,6 @@ $(document).ready(function() {
   </p>
 
 </div>
-
 <p>
 <a href="#ajax-goodness">Update Jobs</a>
 </p>

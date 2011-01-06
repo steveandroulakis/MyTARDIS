@@ -33,6 +33,7 @@
 from urlparse import urljoin, urlparse
 
 from django.db import models
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils.safestring import SafeUnicode
 
@@ -137,6 +138,13 @@ class Dataset_File(models.Model):
 
     def __unicode__(self):
         return self.filename
+
+    def get_storage_path(self):
+        """get file location on disk"""
+        experiment_id = repr(Dataset.objects.get(
+                pk=self.dataset.id).experiment.id)
+        return settings.FILE_STORE_PATH + "/" + experiment_id +\
+            "/" + repr(self.dataset.id) + "/" + self.filename
 
     def get_download_url(self):
         from django.core.urlresolvers import reverse, get_script_prefix
