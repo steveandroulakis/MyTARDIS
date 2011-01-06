@@ -13,24 +13,19 @@ $(document).ready(function() {
 	});
     }
     loadExistingFiles();
-    $("a[href=#upload]").click(function() {
-//	$("#selectedDataset").text("ID: ");
-	$.ajax({
-	    type: "GET",
-	    url: "/ajax/select_files/" + {{ dataset_id }},
-	    dataType: "html",
-	    success: function(data) {
-		$("#uploadOptions").html(data);
-	    }
-	});
+    $.ajax({
+	type: "GET",
+	url: "/ajax/select_files/" + {{ dataset_id }},
+	dataType: "html",
+	success: function(data) {
+	    $("#uploadButton").html(data);
+	}
     });
     $("#uploadify").live("allUploadsComplete", function(e, data){
 	// alert(data);
 	var results = "<p>Successfully uploaded " +
 	    data.filesUploaded + " files.</p>";
-	$("#uploadOptions").html(results +
-			  "<p><a href=\"#upload\">Upload more files</a> -" +
-			  " <a href=\"#enterParams\">Continue</a></p>");
+	$("#uploadResults").html(results);
 	loadExistingFiles();
 
     });
@@ -45,22 +40,24 @@ $(document).ready(function() {
   {% if has_mtz_file or has_pdb_file %}
     <h3>You selected these files for the molecular replacement:</h3>
     {% if has_mtz_file %}
-      <p>MTZ file: {{ mtzfilename }}</p>
+      <p><b>MTZ file:</b> {{ mtzfilename }}</p>
     {% else %}
-      <p>Please upload an MTZ file</p>
+      <h3>Please upload an MTZ file</h3>
     {% endif %}
     {% if has_pdb_file %}
-      <p>PDB filenames: {{ pdbfilenames|join:", " }}</p>
+      <p><b>PDB filenames:</b> {{ pdbfilenames|join:", " }}</p>
     {% else %}
-      <p>Please upload PDB files or a zip of pdb files.</p>
+      <h3>Please upload PDB files or a zip of pdb files.</h3>
     {% endif %}
   {% else %}
-    <p>Please upload an MTZ file and PDB files or a zip of pdb files.</p>
+    <h3>Please upload an MTZ file and PDB files or a zip of pdb files.</h3>
   {% endif %}
-  <h3>Upload files to dataset "<span id="selectedDataset">{{ dataset_name }}</span>" if
-  necessary or continue</h3>
+  <p>Upload more files to dataset "<span id="selectedDataset">{{ dataset_name }}</span>" or continue if PDB and MTZ files are present already.</p>
   <p id="uploadOptions">
-    <a href="#upload">Upload files</a>
+    <span id="uploadResults">
+    </span>
+    <span id="uploadButton">&nbsp;
+    </span>
   {% if has_mtz_file and has_pdb_file %}
     <b><a href="#enterParams">Continue</a></b>
   {% endif %}

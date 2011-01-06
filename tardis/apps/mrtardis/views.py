@@ -4,7 +4,8 @@ from django.shortcuts import render_to_response
 from django.template import Context
 #from django.conf import settings
 import tardis.apps.mrtardis.utils as utils
-from tardis.apps.mrtardis.forms import HPCSetupForm, MRFileSelect, MRForm, RmsdForm
+from tardis.apps.mrtardis.forms import HPCSetupForm, MRFileSelect, MRForm
+from tardis.apps.mrtardis.forms import RmsdForm
 from tardis.apps.mrtardis.models import Job, MrTUser
 from tardis.tardis_portal.forms import CreateDatasetCurrentExperiment
 from tardis.tardis_portal.models import Experiment, Dataset, Dataset_File

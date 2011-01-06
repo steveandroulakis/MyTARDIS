@@ -1984,51 +1984,77 @@ def upload(
     if request.method == 'POST':
         logger.debug('got POST')
         if request.FILES:
-
+            logger.debug("have files")
             uploaded_file_post = request.FILES['Filedata']
 
             print 'about to write uploaded file'
             filepath = write_uploaded_file_to_dataset(dataset,
                     uploaded_file_post)
+            logger.debug("wrote files")
             print filepath
 
             add_datafile_to_dataset(dataset, filepath,
                                     uploaded_file_post.size)
-            print 'added datafile to dataset'
+            logger.debug('added datafile to dataset')
 
     return HttpResponse('True')
 
 
 def write_uploaded_file_to_dataset(dataset, uploaded_file_post):
-    """
-    Writes file POST data to the dataset directory in the file store
+    """convert POSTed files to filesystem files and moves
+    them to the proper storage location.
     :param dataset_id: dataset who's directory to be written to
     :type dataset: models.Model
-    :rtype: the path of the file written to
+    :rtype: string with the path of the file written to
     """
-
     filename = uploaded_file_post.name
+    stagepath = settings.STAGING_PATH
+    fullpath = path.join(stagepath, filename)
+    logger.debug("before with open(" + fullpath + ")")
+    with open(fullpath, 'wb+') as uploaded_file:
+        for chunk in uploaded_file_post.chunks():
+            uploaded_file.write(chunk)
+    logger.debug("after with open")
+    return move_file_to_dataset(dataset, stagepath, filename)
 
+
+def move_file_to_dataset(dataset, location, relative_path):
+    """
+    Moves files or directories with "relative path" to "location"
+    to the dataset directory in the file store.
+    :param dataset_id: dataset who's directory to be written to
+    :type dataset: models.Model
+    :param location: base location of the original file
+    :param relative_path: location of original file
+    relative to location
+    :rtype: string with the path of the file just moved
+    """
+    # file store plus experiment id
     experiment_path = path.join(settings.FILE_STORE_PATH,
                                 str(dataset.experiment.id))
 
+    # file store plus experiment id plus dataset id
     dataset_path = path.join(experiment_path, str(dataset.id))
 
+    # make directory store/expid/datasetid
     if not os.path.exists(dataset_path):
         os.makedirs(dataset_path)
+    # destination file is root plus "relative_path" to allow for dir
+    # structures within datasets
+    moveto = path.join(dataset_path, relative_path)
+    moveto = duplicate_file_check_rename(moveto)
+    # where the file is coming from
+    movefrom = path.join(location, relative_path)
+    logger.debug("before path if")
 
-    copyto = dataset_path + '/' + filename
+    # make dataset dir structure
+    if not os.path.exists(path.dirname(moveto)):
+        os.makedirs(path.dirname(moveto))
+    logger.debug("after path if")
 
-    copyto = duplicate_file_check_rename(copyto)
+    shutil.move(movefrom, moveto)
 
-    uploaded_file = open(copyto, 'wb+')
-
-    for chunk in uploaded_file_post.chunks():
-        uploaded_file.write(chunk)
-
-    uploaded_file.close()
-
-    return copyto
+    return moveto
 
 
 def duplicate_file_check_rename(copyto):
