@@ -70,82 +70,86 @@ def extractMetaDataFromMTZFile(filepath):
     return meta
 
 
-def spacegroupNumberNameTranslation(number=None, name=None):
-    translation_table = {1: "P1", 3: "P2", 4: "P21",
-                         5: "C2", 16: "P222", 17: "P2221",
-                         18: "P21212", 19: "P212121", 20: "C2221",
-                         21: "C222", 22: "F222", 23: "I222",
-                         24: "I212121", 75: "P4", 76: "P41",
-                         77: "P42", 78: "P43", 79: "I4",
-                         80: "I41", 89: "P422", 90: "P4212",
-                         91: "P4122", 92: "P41212", 93: "P4222",
-                         94: "P42212", 95: "P4322", 96: "P43212",
-                         97: "I422", 98: "I4122", 143: "P3",
-                         144: "P31", 145: "P32", 146: "R3",
-                          149: "P312", 150: "P321", 151: "P3112",
-                          152: "P3121", 153: "P3212", 154: "P3221",
-                          155: "R32", 168: "P6",
-                          169: "P61", 170: "P65", 171: "P62",
-                          172: "P64", 173: "P63", 177: "P622",
-                          178: "P6122", 179: "P6522", 180: "P6222",
-                          181: "P6422", 182: "P6322", 195: "P23",
-                          196: "F23", 197: "I23", 198: "P213",
-                          199: "I213", 207: "P432", 208: "P4232",
-                          209: "F432", 210: "F4132", 211: "I432",
-                          212: "P4332", 213: "P4132", 214: "I4132", }
+def sgNumNameTrans(number=None, name=None):
+    ttable = {1: "P1",
+              3: "P2", 4: "P21",
+              5: "C2",
+              16: "P222", 17: "P2221", 18: "P21212", 19: "P212121",
+              20: "C2221", 21: "C222",
+              22: "F222",
+              23: "I222", 24: "I212121",
+              75: "P4", 76: "P41", 77: "P42", 78: "P43",
+              79: "I4", 80: "I41",
+
+              89: "P422", 90: "P4212", 91: "P4122", 92: "P41212", 93: "P4222",
+              94: "P42212", 95: "P4322", 96: "P43212",
+
+              97: "I422", 98: "I4122",
+              143: "P3", 144: "P31", 145: "P32",
+              146: "R3", 155: "R32",
+              149: "P312", 151: "P3112", 153: "P3212",
+              150: "P321", 152: "P3121", 154: "P3221",
+
+              168: "P6", 169: "P61", 170: "P65", 171: "P62",
+              172: "P64", 173: "P63",
+
+              177: "P622", 178: "P6122", 179: "P6522", 180: "P6222",
+              181: "P6422", 182: "P6322",
+
+              195: "P23", 198: "P213",
+              196: "F23",
+              197: "I23", 199: "I213",
+              207: "P432", 208: "P4232",
+              209: "F432", 210: "F4132", 212: "P4332", 213: "P4132",
+              211: "I432", 214: "I4132", }
     if number != None and name == None:
         if type(number).__name__ != 'int':
             number = int(number)
-        return translation_table[number]
+        return ttable[number]
     elif number == None and name != None:
-        for (key, value) in translation_table.iteritems():
+        for (key, value) in ttable.iteritems():
             if value == name:
                 return key
     else:
         return False
+    return False
 
 
-def getSpaceGroupGroup(sgNumber):
-    """get Space Group Group from Space Group number"""
-    types = {1: "triclinic",
-             3:  "monoclinic_p", 4: "monoclinic_p",
-             5: "monoclinic_c",
-             16: "orthorhombic_p", 17: "orthorhombic_p", 18: "orthorhombic_p",
-             19: "orthorhombic_p",
-             20: "orthorhombic_c", 21: "orthorhombic_c",
-             22: "orthorhombic_f",
-             23: "orthorhombic_i", 24: "orthorhombic_i",
-             75: "tetragonal_p4", 76: "tetragonal_p4", 77: "tetragonal_p4",
-             78: "tetragonal_p4",
-             79: "tetragonal_i4", 80: "tetragonal_i4",
-             89: "tetragonal_p422", 90: "tetragonal_p422",
-             91: "tetragonal_p422",
-             92: "tetragonal_p422", 93: "tetragonal_p422",
-             94: "tetragonal_p422",
-             95: "tetragonal_p422", 96: "tetragonal_p422",
-             97: "tetragonal_i422", 98: "tetragonal_i422",
-             143: "trigonal_p3", 144: "trigonal_p3", 145: "trigonal_p3",
-             146: "trigonal_r", 155: "trigonal_r",
-             149: "trigonal_p312", 151: "trigonal_p312", 153: "trigonal_p312",
-             150: "trigonal_p321", 152: "trigonal_p321", 154: "trigonal_p321",
-             168: "hexagonal_p6", 169: "hexagonal_p6", 170: "hexagonal_p6",
-             171: "hexagonal_p6", 172: "hexagonal_p6", 173: "hexagonal_p6",
-             177: "hexagonal_p622", 178: "hexagonal_p622",
-             179: "hexagonal_p622", 180: "hexagonal_p622",
-             181: "hexagonal_p622", 182: "hexagonal_p622",
-             195: "cubic_p2", 198: "cubic_p2",
-             196: "cubic_i2",
-             207: "cubic_p4", 208: "cubic_p4", 212: "cubic_p4",
-             213: "cubic_p4",
-             209:  "cubic_f4", 210: "cubic_f4",
-             211:  "cubic_i4", 214: "cubic_i4", }
-    return types[sgNumber]
-
-
-def getSpaceGroupGroupHTML(sgNumber):
-    group = getSpaceGroupGroup(sgNumber)
-    filename = "spacegroups/" + group + ".html"
-    return filename
+def getGroupNumbersFromNumber(number):
+    """get Space Groups in Group from Space Group number"""
+    r = lambda x, y: range(x, y + 1)  # useful shortcut for ranges
+    grouping = [[1],  # triclinic
+                [3, 4],  # monoclinic p
+                [5],  # monoclinic c
+                r(16, 19),  # orthorhombic p
+                [20, 21],  # orthorhombic c
+                [22],  # orthorhombic f
+                [23, 24],  # orthorhombic i
+                r(75, 78),  # tetragonal p4
+                [79, 80],  # tetragonal i4
+                r(89, 96),  # tetragonal p422
+                [97, 98],  # tetragonal i422
+                r(143, 145),  # trigonal p3
+                [146, 155],  # trigonal r
+                [149, 151, 153],  # trigonal p312
+                [150, 152, 154],  # trigonal p321
+                r(168, 173),  # hexagonal p6
+                r(177, 182),  # hexagonal p622
+                [195, 198],  # cubic p2
+                [196],  # cubic f2
+                [197, 199],  # cubic i2
+                [207, 208, 212, 213],  # cubic p4
+                [209, 210],  # cubic f4
+                [211, 214],  # cubic i4
+                ]
+    mydict = dict()
+    for item in grouping:
+        for jtem in item:
+            mydict[jtem] = item
+    if number in mydict:
+        return mydict[number]
+    else:
+        return []
 
 
 def calcMW(sequence):
