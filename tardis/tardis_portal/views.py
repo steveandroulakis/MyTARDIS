@@ -2029,12 +2029,7 @@ def move_file_to_dataset(dataset, location, relative_path):
     relative to location
     :rtype: string with the path of the file just moved
     """
-    # file store plus experiment id
-    experiment_path = path.join(settings.FILE_STORE_PATH,
-                                str(dataset.experiment.id))
-
-    # file store plus experiment id plus dataset id
-    dataset_path = path.join(experiment_path, str(dataset.id))
+    dataset_path = _filestore_location(dataset)
 
     # make directory store/expid/datasetid
     if not os.path.exists(dataset_path):
@@ -2055,6 +2050,60 @@ def move_file_to_dataset(dataset, location, relative_path):
     shutil.move(movefrom, moveto)
 
     return moveto
+
+
+def add_tree_to_dataset(dataset, tree_base):
+    """
+    Moves a bunch of files under a directory "tree_base"
+    to the dataset directory in the file store.
+    :param dataset_id: dataset who's directory to be written to
+    :type dataset: models.Model
+    :param tree_base: base location of the tree
+    :rtype: string with the new base path of the tree just moved
+    """
+    dataset_path = _filestore_location(dataset)
+    if not os.path.exists(dataset_path):
+        os.makedirs(dataset_path)
+
+    from stat import ST_MODE, ST_SIZE, S_ISREG, S_ISDIR
+
+    def walktree(top, root, callback):
+        '''recursively descend the directory tree rooted at top,
+           calling the callback function for each regular file'''
+
+        for f in os.listdir(top):
+            pathname = os.path.join(top, f)
+            mode = os.stat(pathname)[ST_MODE]
+            if S_ISDIR(mode):
+                # It's a directory, recurse into it
+                walktree(pathname, root, callback)
+            elif S_ISREG(mode):
+                # It's a file, call the callback function
+                callback(root, pathname)
+            else:
+                # Unknown file type, print a message
+                print 'Skipping %s' % pathname
+
+    def visitfile(root, filename):
+        filename = move_file_to_dataset(dataset,
+                                        root,
+                                        filename[len(root)+1:])
+        add_datafile_to_dataset(dataset,
+                                filename,
+                                os.stat(filename)[ST_SIZE])
+
+    walktree(tree_base, tree_base, visitfile)
+    return path.join(dataset_path, tree_base)
+
+
+def _filestore_location(dataset):
+    # file store plus experiment id
+    experiment_path = path.join(settings.FILE_STORE_PATH,
+                                str(dataset.experiment.id))
+
+    # file store plus experiment id plus dataset id
+    dataset_path = path.join(experiment_path, str(dataset.id))
+    return dataset_path
 
 
 def duplicate_file_check_rename(copyto):
@@ -2097,12 +2146,9 @@ def add_datafile_to_dataset(dataset, filepath, size):
     :rtype: The new datafile object
     """
 
-    experiment_path = path.join(settings.FILE_STORE_PATH,
-                                str(dataset.experiment.id))
+    dataset_path = _filestore_location(dataset)
 
-    dataset_path = path.join(experiment_path, str(dataset.id))
-
-    urlpath = 'file:/' + filepath[len(experiment_path):]
+    urlpath = 'file:/' + filepath[len(dataset_path):]
     filename = urlpath.rpartition('/')[2]
 
     datafile = Dataset_File(dataset=dataset, filename=filename,

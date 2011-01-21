@@ -15,4 +15,8 @@ urlpatterns = patterns('',
                         'tardis.apps.mrtardis.views.MRParams'),
                        (r'^upload_files/$',
                         'tardis.apps.mrtardis.views.upload_files'),
+                       (r'^updateJobStatus/$',
+                        'tardis.apps.mrtardis.views.updateJobStatus'),
+                       (r'^retrieve/$',
+                        'tardis.apps.mrtardis.views.retrieveFromHPC'),
                        )

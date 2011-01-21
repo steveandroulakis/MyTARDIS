@@ -1,20 +1,23 @@
 # Create your views here.
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.shortcuts import render_to_response
 from django.template import Context
-#from django.conf import settings
+from django.conf import settings
 import tardis.apps.mrtardis.utils as utils
 from tardis.apps.mrtardis.forms import HPCSetupForm, MRFileSelect, MRForm
 from tardis.apps.mrtardis.forms import RmsdForm
 from tardis.apps.mrtardis.models import Job, MrTUser
 from tardis.tardis_portal.forms import CreateDatasetCurrentExperiment
-from tardis.tardis_portal.models import Experiment, Dataset, Dataset_File
+from tardis.tardis_portal.models import Experiment, Dataset
 from tardis.tardis_portal.views import return_response_not_found
+from tardis.tardis_portal.views import add_tree_to_dataset
 from tardis.tardis_portal.logger import logger
 from django.forms.formsets import formset_factory
+from os import path
+import tardis.apps.mrtardis.hpcjob as hpcjob
 
-import tardis.apps.mrtardis.backend.hpcjob as hpcjob
-
+import uuid
+import datetime
 #import zipfile
 
 
@@ -51,17 +54,71 @@ def jobstatus(request, experiment_id):
     if not request.user.is_authenticated():
         return "Not logged in"
     try:
-        utils.update_job_status(experiment_id=experiment_id,
-                                user_id=request.user.id)
-        jobs = Job.objects.filter(experiment_id=experiment_id)
-
+        #utils.update_job_status(experiment_id=experiment_id,
+        #                        user_id=request.user.id)
+        jobs = Job.objects.filter(experiment=Experiment.objects.get(
+                pk=experiment_id))
+        for job in jobs:
+            job.updateStatus()
+        datasets = jobs.values_list('dataset').distinct()
+        logger.debug(repr(datasets))
+        disparray = []
+        for dataset in datasets:
+            dataset = dataset[0]
+            jobids = jobs.filter(dataset=dataset).values_list(
+                'jobid').distinct()
+            jobidarray = []
+            for jobid in jobids:
+                finished = True
+                retrieved = True
+                jobid = jobid[0]
+                inttime = uuid.UUID(jobid).time
+                submittime = datetime.datetime.fromtimestamp(
+                    (inttime - 0x01b21dd213814000L)*100/1e9)
+                thesejobs = jobs.filter(jobid=jobid)
+                jobdataarray = []
+                for job in thesejobs:
+                    if job.jobstatus.strip() != "Finished":
+                        finished = False
+                    if job.jobstatus.strip() != "Retrieved":
+                        retrieved = False
+                    jobdata = {
+                        'status': job.jobstatus,
+                        'hpcjobid': job.hpcjobid,
+                        'submittime': job.submittime,
+                        }
+                    jobdataarray.append(jobdata)
+                jobiddict = {'jobid': jobid,
+                             'joblist': jobdataarray,
+                             'finished': finished,
+                             'retrieved': retrieved,
+                             'submittime': submittime.strftime(
+                        "%d %b %Y, %H:%M:%S")}
+                jobidarray.append(jobiddict)
+            datasetdict = {'dataset': dataset,
+                           'jobidlist': jobidarray}
+            disparray.append(datasetdict)
+            logger.debug(repr(disparray))
         c = Context({
-                'jobs': jobs,
+                #'jobs': jobs,
+                'disparray': disparray,
             })
     except Experiment.DoesNotExist:
         return return_response_not_found(request)
 
     return render_to_response('mrtardis/jobstatus.html', c)
+
+
+def updateJobStatus(request):
+    hpcjobid = request.GET['hpcjobid']
+    job = Job.objects.get(hpcjobid=hpcjobid)
+    if 'status' in request.GET:
+        status = request.GET['status']
+        job.jobstatus = status
+        job.save()
+    else:
+        job.updateStatus()
+    return HttpResponse("OK")
 
 
 def test_user_setup(request):
@@ -183,9 +240,10 @@ def MRParams(request, dataset_id):
             logger.debug("params: " + repr(jobparameters))
             logger.debug("files: " + repr(filepaths))
             newJob.stage(jobparameters, filepaths)
-
-            #newJob.submit()
-            #newJob save to db
+            newJob.submit()
+            dataset = Dataset.objects.get(pk=dataset_id)
+            newJob.dbSave(dataset.experiment_id, dataset,
+                          request.user)
             c = Context({})
             return render_to_response("mrtardis/running_job.html", c)
     else:
@@ -203,3 +261,30 @@ def MRParams(request, dataset_id):
             'spacegroupname': utils.sgNumNameTrans(number=sg_num),
             })
     return render_to_response("mrtardis/parameters.html", c)
+
+
+def retrieveFromHPC(request):
+    jobid = request.GET['jobid']
+    hpc_username = MrTUser.objects.get(user=request.user).hpc_username
+    myJob = hpcjob.HPCJob(hpc_username, jobid)
+    jobs = Job.objects.filter(jobid=jobid)
+    dataset = jobs[0].dataset
+    destpath = settings.STAGING_PATH
+    try:
+        myJob.retrieve(destpath)
+        del(myJob)
+        srcpath = path.join(destpath, jobid)
+        add_tree_to_dataset(dataset, srcpath)
+        for job in jobs:
+            job.jobstatus = "Retrieved"
+            job.save()
+        c = Context({'retrieved': True,
+                     'error': ""})
+    except IOError as e:
+        # could mark differently, but it makes no difference to user and user interface...
+        for job in jobs:
+            job.jobstatus = "Retrieved"
+            job.save()
+        c = Context({'retrieved': False,
+                     'error': e.strerror})
+    return render_to_response("mrtardis/retrieve.html", c)

@@ -1,5 +1,44 @@
-<table><tr><th>Job ID</th><th>Status</th></tr>
-{% for job in jobs %}
-  <tr><td>{{ job.jobid }}</td><td>{{ job.jobstatus }}</td></tr>
-{% endfor %}
-</table>
+<script type="text/javascript">
+$(".retrievelink").live("click", function(){
+    var jobid = this.id;
+    var url="/apps/mrtardis/retrieve?jobid=" + jobid;
+    $.ajax({
+	type: "GET",
+	url: url,
+	dataType: "html",
+	success: function(data) {
+	    console.log("ajaxing");
+	    console.log(data);
+	    $("span[id='"+ jobid+"']").html(data);
+	}
+    });
+});
+
+</script>
+<ul>
+  {% for dataset in disparray %}
+    <li>Dataset: {{ dataset.dataset }}
+    <ul>
+      {% for jobid in dataset.jobidlist %}
+	<li>Job from: {{ jobid.submittime }}
+	{% if jobid.retrieved %}
+	  <p>Job finished and data is not available anymore.</p>
+	{% else %}
+	<span class="statustable" id="{{ jobid.jobid }}">
+	  <table>
+	    <tr><th>Job id on HPC</th><th>Status</th><th>Submit Time</th></tr>
+	    {% for job in jobid.joblist %}
+	      <tr><td>{{ job.hpcjobid }}</td><td>{{ job.status }}</td>
+	      <td>{{ job.submittime }}</td></tr>
+	    {% endfor %}
+	  </table>
+	  {% if jobid.finished %}
+	    <a class="retrievelink" id="{{ jobid.jobid }}" href="#retrieve">Retrieve data</a>
+	  {% endif %}
+	</span>
+	{% endif %}
+	</li>
+      {% endfor %}
+    </ul></li>
+  {% endfor %}
+</ul>

@@ -9,11 +9,11 @@ $(document).ready(function() {
 	$("#test_user_setup").html(data);
     });
     {% endif %}
-    $("a[href=#ajax-goodness]").click(function() {
+    //$("a[href=#ajax-goodness]").click(function() {
 	$.get("/apps/mrtardis/jobstatus/{{ experiment_id }}", function(data) {
 	    $(".jobstatus").html(data);
 	});
-    });
+    //});
     $(".startframe").hide();
     $("a[href=#startMR]").click(function() {
 	$.ajax({
@@ -115,12 +115,9 @@ $(document).ready(function() {
   </p>
 
 </div>
-<p>
+<!--<p>
 <a href="#ajax-goodness">Update Jobs</a>
-</p>
+</p>-->
 <div class="jobstatus">
 </div>
-<p>Update test 2</p>
-<form action="http://www.google.com">
-<input type="submit" value="Google"/>
-</form>
+

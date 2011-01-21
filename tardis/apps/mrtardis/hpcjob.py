@@ -9,15 +9,15 @@ __date__ = "$15/09/2010 3:17:37 PM$"
 import uuid
 import tardis.apps.mrtardis.backend.secrets as secrets
 import tardis.apps.mrtardis.backend.hpc as hpc
+from tardis.apps.mrtardis.models import Job, MrTUser
+from tardis.tardis_portal.models import Experiment
+from tardis.tardis_portal.logger import logger
 
 # IMPORTS PYTHON STDLIB
 import tempfile
 import shutil
 import zipfile
 import os
-
-if __name__ == "__main__":
-    print "Hello World"
 
 
 class HPCJob:
@@ -127,19 +127,23 @@ class HPCJob:
         self.filelist = os.listdir(self.tmpdir)
         #print self.filelist
         self.uploadToHPC()
+        self.cleanuplocal()
 
     def retrieve(self, destdir):
         self._ensureHPC()
         srcdir = self.dirOnHPC
         destdir = destdir + "/" + self.jobid
-        os.makedirs(destdir)
+        if not os.path.exists(destdir):
+            os.makedirs(destdir)
         self.myHPC.download(srcdir, destdir, excludefiles=self.filelist)
         self.retrieved = True
+        #self.cleanupHPC()
 
     def __del__(self):
         if self.retrieved:
-            self.cleanuplocal()
             self.cleanupHPC()
+        if self.tmpdir != "":
+            self.cleanuplocal()
         #print "cleaned up"
 
     def cleanuplocal(self):
@@ -229,3 +233,16 @@ module load phenix
 
     def getJobType(self):
         return "This job is of the amazingly awesome type"
+
+    def dbSave(self, experiment_id, dataset, user):
+        jobstatus = "submitted"
+        for hpcid in self.idsOnHPC:
+            logger.debug("about to save job")
+            newJob = Job()
+            newJob.experiment = Experiment.objects.get(id=experiment_id)
+            newJob.dataset = dataset
+            newJob.user = MrTUser.objects.get(user=user)
+            newJob.jobid = self.jobid
+            newJob.hpcjobid = hpcid
+            newJob.jobstatus = jobstatus
+            newJob.save()

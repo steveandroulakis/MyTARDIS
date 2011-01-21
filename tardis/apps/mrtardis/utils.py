@@ -1,9 +1,9 @@
-from tardis.apps.mrtardis.models import MrTUser, Job
+from tardis.apps.mrtardis.models import MrTUser
 #from django.contrib.auth.models import User
 
 from tardis.tardis_portal.models import Dataset_File
 import tardis.apps.mrtardis.backend.hpc as hpc
-import tardis.apps.mrtardis.backend.hpcjob as hpcjob
+#import tardis.apps.mrtardis.hpcjob as hpcjob
 import tardis.apps.mrtardis.backend.secrets as secrets
 import zipfile
 #from tardis.tardis_portal.logger import logger
@@ -38,18 +38,6 @@ def test_hpc_connection(user):
 
 def getPublicKey():
     return secrets.publickey
-
-
-def update_job_status(experiment_id, user_id):
-    hpcuser = MrTUser.objects.get(pk=user_id)
-    for job in Job.objects.filter(username=hpcuser.hpc_username):
-        thisjob = hpcjob.HPCJob(username=hpcuser.hpc_username, jobid=job.jobid)
-        stati = thisjob.status()
-        for status in stati:
-            jobentry = Job(jobid=job.jobid,
-                           jobstatus=status,
-                           experiment_id=experiment_id)
-            jobentry.save()
 
 
 def extractMetaDataFromMTZFile(filepath):
