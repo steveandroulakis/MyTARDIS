@@ -25,8 +25,10 @@ $(document).ready(function() {
 	// alert(data);
 	var results = "<p>Successfully uploaded " +
 	    data.filesUploaded + " files.</p>";
-	$("#uploadResults").html(results);
-	loadExistingFiles();
+//	alert(results);
+	$(".startMR").trigger("loadNext", ["upload", {{dataset_id}}]);
+//	$("#uploadResults").html(results);
+//	loadExistingFiles();
 
     });
     $("a[href=#enterParams]").live("click", function() {

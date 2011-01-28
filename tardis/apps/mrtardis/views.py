@@ -95,7 +95,8 @@ def jobstatus(request, experiment_id):
                              'submittime': submittime.strftime(
                         "%d %b %Y, %H:%M:%S")}
                 jobidarray.append(jobiddict)
-            datasetdict = {'dataset': dataset,
+            datasetdict = {'dataset': Dataset.objects.get(
+                    pk=dataset).description,
                            'jobidlist': jobidarray}
             disparray.append(datasetdict)
             logger.debug(repr(disparray))
