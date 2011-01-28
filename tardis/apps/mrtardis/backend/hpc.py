@@ -37,6 +37,13 @@ class hpc:
         self.client.connect(hostname=self.hostname, username=self.username,
                             pkey=self.privateKey)
 
+    def __del__(self):
+        if self.client != None:
+            try:
+                self.client.close()
+            except:
+                pass
+
     def setKey(self, privateKeyString, keytype):
         privateKeyFileObj = StringIO.StringIO(privateKeyString)
         if keytype == "rsa":

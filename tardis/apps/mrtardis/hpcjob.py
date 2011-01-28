@@ -81,7 +81,7 @@ class HPCJob:
     def getUniqueID(self):
         return str(uuid.uuid1())
 
-    def uploadToHPC(self):
+    def _uploadToHPC(self):
         self._ensureHPC()
         #print "UPLOADING"
         self.myHPC.upload(self.dirOnHPC, self.filelist, self.tmpdir)
@@ -126,7 +126,7 @@ class HPCJob:
         self.makeJobScripts()
         self.filelist = os.listdir(self.tmpdir)
         #print self.filelist
-        self.uploadToHPC()
+        self._uploadToHPC()
         self.cleanuplocal()
 
     def retrieve(self, destdir):
