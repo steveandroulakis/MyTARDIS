@@ -1,4 +1,3 @@
-<!--
  Copyright (c) 2010, Monash e-Research Centre
    (Monash University, Australia)
  Copyright (c) 2010, VeRSI Consortium
@@ -26,48 +25,4 @@
  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
--->
-{% extends "tardis_portal/portal_template.html" %}
-{% load basiccomparisonfilters %}
-{% load parametertypecheck %}
-{% load uploadify_tags %}
-{% load dynurl %}
 
-{% block script %}
-
-  <script type="text/javascript">
-    $(function() {
-	$("#tabs").tabs({
-	    ajaxOptions: {dataType: "html"},
-	    cookie: { expires: 30 },
-	});
-    });
-  </script>
-
-{% endblock %}
-
-{% block fullpage %}
-
-  <div id="fullpage">
-    <div class="post">
-      <h1 class="title">{{ experiment.title }}</h1>
-      <a href="{{ experiment.get_edit_url }}">[Edit]</a>
-    </h1>
-
-    <div class="tabcontainer">
-      <div id="tabs">
-	<ul>
-	  <li><a href="{% url tardis.tardis_portal.views.experiment_description experiment.id %}">Description</a></li>
-	  <li><a href="{% url tardis.tardis_portal.views.experiment_datasets experiment.id %}">Datasets ({{ experiment.dataset_set.count }})</a></li>
-	  {% if experiment.ftp_location %}<li><a href="/ajax/ftp/{{experiment.id}}">FTP Download</a></li>{% endif %}
-	  {% for appurl, appname in apps %}
-	    <li><a href="{% dynurl appurl experiment.id %}">{{ appname }}</a></li>
-	  {% endfor %}
-	</ul>
-
-      </div><!-- End tab container -->
-
-    </div>
-  </div>
-
-{% endblock %}

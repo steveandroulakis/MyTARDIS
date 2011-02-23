@@ -48,6 +48,7 @@ from django.contrib.auth.models import User, Group
 from django.utils.safestring import SafeUnicode
 
 from tardis.tardis_portal.managers import ExperimentManager
+from tardis.tardis_portal.managers import DatasetParameterManager
 
 
 class UserProfile(models.Model):
@@ -187,7 +188,7 @@ class ExperimentACL(models.Model):
     :attribute canRead: gives the user read access
     :attribute canWrite: gives the user write access
     :attribute canDelete: gives the user delete permission
-    :attribute owner: the experiment owner flag.
+    :attribute isOwner: the experiment owner flag.
     :attribute effectiveDate: the date when access takes into effect
     :attribute expiryDate: the date when access ceases
     :attribute aclOwnershipType: system-owned or user-owned.
@@ -284,6 +285,19 @@ class Dataset(models.Model):
 
     def __unicode__(self):
         return self.description
+
+    def get_metadata(self, schemaname=None):
+        if schemaname:
+            schemaarg = {'schema': Schema.objects.get(namespace=schemaname)}
+        else:
+            schemaarg = {}
+        parametersets = DatasetParameterSet.objects.filter(dataset=self,
+                                                           **schemaarg)
+        returndict = dict()
+        for parset in parametersets:
+            metadata = DatasetParameter.objects.get_dict(parameterset=parset)
+            returndict[parset.schema.namespace] = metadata
+        return returndict
 
 
 class Dataset_File(models.Model):
@@ -524,6 +538,7 @@ class DatasetParameter(models.Model):
     name = models.ForeignKey(ParameterName)
     string_value = models.TextField(null=True, blank=True)
     numerical_value = models.FloatField(null=True, blank=True)
+    objects = DatasetParameterManager()
 
     def __unicode__(self):
         if self.name.is_numeric:
