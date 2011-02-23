@@ -1,0 +1,116 @@
+<script type="text/javascript">
+$(document).ready(function() {
+
+    // testing user's HPC readiness and showing setup help if they are not set up
+    var username = "{{ hpc_username }}";
+    if (username == "False") {
+	$("#HPCset-up").hide();
+	$.ajax({
+	    url: "{% url tardis.apps.mrtardis.views.test_user_setup experiment_id %}",
+	    success:
+ 	    function(data){
+		$("#setupHPC").html(data);
+		$("#setupHPC").show();
+		//$("#mrtardis").hide();
+	    },
+	       dataType: "html",
+	      });
+    } else {
+	$("#mrtardis").show();
+	$("#HPCset-up").show();
+	$("#setupHPC").hide();
+    }
+
+    // responding to the different requests/forms
+
+    function respondToForm(postdata) {
+	$.ajax({
+	    type: "POST",
+	    url: "{% url tardis.apps.mrtardis.views.MRform experiment_id %}",
+	    data: postdata,
+	    success: function(data) {
+		$("#mrtardis").html(data);
+	    }
+	});
+    }
+    $("form[id=newDS]").bind("submit", function() {
+	postdata = {'action': 'newDS',
+		    'description': $("#id_description").val(),
+		   }
+	respondToForm(postdata);
+	return false;
+    });
+    $("form[id=continueDS]").bind("submit", function() {
+	postdata = {'action': 'continue',
+		    'dataset': $("#continueDS #id_dataset").val(),
+		   }
+	respondToForm(postdata);
+	return false;
+    });
+    $("form[id=rerunDS]").bind("submit", function() {
+	postdata = {'action': 'rerunDS',
+		    'dataset': $("#rerunDS #id_dataset").val(),
+		   }
+	respondToForm(postdata);
+	return false;
+    });
+
+    // different url for displaying data
+    $("form[id=viewDS]").bind("submit", function() {
+	postdata = {'action': 'viewDS',
+		    'dataset': $("#viewDS #id_dataset").val(),
+		   }
+	$.ajax({
+	    type: "POST",
+	    url: "{% url tardis.apps.mrtardis.views.displayResults experiment_id %}",
+	    data: postdata,
+	    //dataType: "json",
+	    success: function(data) {
+		$("#mrtardis").html(data);
+	    }
+	});
+	return false;
+    });
+
+
+});
+</script>
+<p id="setupHPC"></p>
+  <h2>Simple Molecular Replacements on the Monash Grid</h2>
+<div id="mrtardis">
+  <h3>Please select what you would like to do next:</h3>
+  <p>
+    <b>Set up a new run</b>
+    <form id="newDS">{{ newDSForm }}
+    <input type="submit" value="Create" />
+    </form>
+  </p>
+  {% if continueForm %}
+    <p>
+      <b>Continue an interrupted setup</b>
+      <form id="continueDS">{{ continueForm }}
+      <input type="submit" value="Continue" />
+      </form>
+    </p>
+  {% endif %}
+  {% if viewForm %}
+    <p>
+      <b>View the results of finished runs</b>
+      <form >{{ viewForm }}</form>
+    </p>
+  {% endif %}
+  {% if rerunForm %}
+    <p>
+      <b>Copy, edit and re-run a previous Molecular Replacement</b>
+      <form >{{ rerunForm }}</form>
+    </p>
+  {% endif %}
+
+<!-- debug only
+  <p style="text-align:right;font-size:80%;">
+    Experiment id: {{ experiment_id }}
+  </p> -->
+</div>
+<p id="HPCset-up" style="text-align: right; font-size:80%;">
+Your HPC resource is set up and ready to use. You are using authcate username {{ hpc_username }} on the Monash Sun Grid.<br /><a href="changeUsername" >Change username</a>
+</p>
