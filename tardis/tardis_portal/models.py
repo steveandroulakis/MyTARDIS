@@ -232,9 +232,6 @@ class Author_Experiment(models.Model):
     author = models.CharField(max_length=255)
     order = models.PositiveIntegerField()
 
-    class Meta:
-        ordering = ('order', )
-
     def __unicode__(self):
         return SafeUnicode(self.author) + ' | ' \
             + SafeUnicode(self.experiment.id) + ' | ' \
@@ -276,7 +273,7 @@ class Dataset(models.Model):
         if url:
             datafile.url = url
         else:
-            datafile.url = 'file:/' + filepath
+            datafile.url = 'file://' + filepath
 
         if size:
             datafile.size = size
