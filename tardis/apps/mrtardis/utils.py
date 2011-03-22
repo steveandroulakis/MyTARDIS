@@ -1,22 +1,61 @@
+# -*- coding: utf-8 -*-
+#
+# Copyright (c) 2010, Monash e-Research Centre
+#   (Monash University, Australia)
+# Copyright (c) 2010, VeRSI Consortium
+#   (Victorian eResearch Strategic Initiative, Australia)
+# All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#    *  Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#    *  Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#    *  Neither the name of the VeRSI, the VeRSI Consortium members, nor the
+#       names of its contributors may be used to endorse or promote products
+#       derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE7
+# DISCLAIMED. IN NO EVENT SHALL THE REGENTS AND CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+"""
+utils.py
+
+.. moduleauthor::  Grischa Meyer <grischa.meyer@monash.edu>
+
+"""
+
 import os
 import shutil
+
 from django.conf import settings
-from tardis.apps.mrtardis.models import HPCUser
 
 from tardis.tardis_portal.models import Dataset
 from tardis.tardis_portal.models import Dataset_File
 from tardis.tardis_portal.staging import duplicate_file_check_rename
-import tardis.apps.mrtardis.hpc as hpc
-
-import tardis.apps.mrtardis.secrets as secrets
-import zipfile
 from tardis.tardis_portal.logger import logger
+
+from tardis.apps.mrtardis.hpc import HPC
+from tardis.apps.mrtardis.models import HPCUser
 
 
 def test_hpc_connection(user):
-    """returns True/False after trying to connect to the cluster,
+    """
+    :param user: user object
+    :returns: True/False after trying to connect to the cluster,
     sets a flag if successful and returns True if flag is set as
-    True without testing the connection first"""
+    True without testing the connection first
+    """
     logger.debug("testing if user exists")
     try:
         hpcuser = HPCUser.objects.get(user=user)
@@ -26,10 +65,7 @@ def test_hpc_connection(user):
     if hpcuser.testedConnection:
         #logger.debug("testConnection = True")
         return hpcuser.hpc_username
-    myHPC = hpc.hpc(secrets.hostname,
-                    hpcuser.hpc_username,
-                    queuetype="sge", authtype="key",
-                    key=secrets.privatekey, keytype="rsa")
+    myHPC = HPC(location="msg", username=hpcuser.hpc_username)
     if myHPC.testConnection():
         hpcuser.testedConnection = True
         #logger.debug("tested for real: " + repr(hpcuser.testedConnection))
@@ -42,30 +78,19 @@ def test_hpc_connection(user):
 
 
 def getPublicKey():
-    return secrets.publickey
-
-
-def extractMetaDataFromMTZFile(filepath):
-    """extracts meta data from end of MTZ file"""
-    ifile = open(filepath, 'r')
-    file_contents = ""
-    lines = ifile.readlines()
-    for line in lines:
-        if "VERS MTZ" in line.upper():
-            file_contents += line + "\n"
-    ifile.close()
-    meta_data_start = file_contents.index("VERS MTZ")
-    meta_data = file_contents[meta_data_start:].strip()
-    meta = []
-    for i in range(len(meta_data) / 80 + 1):
-        if (i + 1) * 80 < len(meta_data):
-            meta.append(meta_data[i * 80:(i + 1) * 80])
-        else:
-            meta.append(meta_data[i * 80:])
-    return meta
+    """leftover from before"""
+    return HPC.getPublicKey()
 
 
 def sgNumNameTrans(number=None, name=None):
+    """
+    translates between space group number and names
+    :param number: number of a space group
+    :type number: integer
+    :param name: name of a space group
+    :tpye name: string
+    :returns: the parameter that was not provided
+    """
     ttable = {1: "P1",
               3: "P2", 4: "P21",
               5: "C2",
@@ -111,7 +136,12 @@ def sgNumNameTrans(number=None, name=None):
 
 
 def getGroupNumbersFromNumber(number):
-    """get Space Groups in Group from Space Group number"""
+    """
+    get Space Groups in Group from Space Group number
+    :param number: space group number
+    :type number: integer
+    :returns: array of numbers
+    """
     r = lambda x, y: range(x, y + 1)  # useful shortcut for ranges
     grouping = [[1],  # triclinic
                 [3, 4],  # monoclinic p
@@ -148,7 +178,12 @@ def getGroupNumbersFromNumber(number):
 
 
 def calcMW(sequence):
-    """input sequence and get molecular weight"""
+    """
+    input sequence and get molecular weight
+    :param sequence: string with protein sequence
+    :type sequence: string
+    :returns: float
+    """
     MWtable = {"A": 71.0788, "C": 103.1388, "D": 115.0886,
                "E": 129.1155, "F": 147.1766, "G": 57.0519,
                "H": 137.1411, "I": 113.1594, "K": 128.1741,
@@ -157,85 +192,21 @@ def calcMW(sequence):
                "S": 87.0782, "T": 101.1051, "V": 99.1326,
                "W": 186.2132, "Y": 163.1760,
                }
-    mw = 0
-    for aa in sequence:
-        mw += MWtable[aa]
+    mw = 0.0
+    for aa in sequence.upper():
+        try:
+            mw += MWtable[aa]
+        except:
+            pass
     return mw
-
-
-def get_mtz_file(dataset_id):
-    """Returns the first MTZ file it finds in the dataset"""
-    mtzquery = Dataset_File.objects.filter(dataset__pk=dataset_id,
-                                           filename__iendswith=".mtz")
-    if len(mtzquery) > 0:
-        return mtzquery[0]
-    else:
-        return None
-
-
-def get_pdb_files(dataset_id, storagePaths=False):
-    """
-    Return list of pdbfiles contained in dataset. Returns pdb filenames
-    including the ones in zip files by default.
-    If storagePaths = True, return zipfiles unopend if
-    they contain pdb files and all files as their full filesystem paths.
-    """
-    pdbfilenames = []
-    zipquery = Dataset_File.objects.filter(dataset__pk=dataset_id,
-                                           filename__iendswith=".zip")
-    if len(zipquery) > 0:
-        for zipfileobj in zipquery:
-            zippath = zipfileobj.get_storage_path()
-            thiszip = zipfile.ZipFile(zippath, 'r')
-            for filename in thiszip.namelist():
-                if filename.endswith((".pdb", ".PDB")) and \
-                        not filename.startswith("__"):
-                    if storagePaths:
-                        pdbfilenames.append(zippath)
-                        thiszip.close()
-                        break
-                    else:
-                        pdbfilenames.append(filename)
-            thiszip.close()
-    pdbquery = Dataset_File.objects.filter(dataset__pk=dataset_id,
-                                           filename__iendswith=".pdb")
-    if len(pdbquery) > 0:
-        for pdbfileobj in pdbquery:
-            if storagePaths:
-                pdbfilenames.append(pdbfileobj.get_storage_path())
-            else:
-                pdbfilenames.append(pdbfileobj.filename)
-    return pdbfilenames
-
-
-def processMTZ(mtzfile):
-    """extract data from metadata block of mtz file"""
-    #based on http://www.ccp4.ac.uk/html/mtzformat.html#fileformat
-    metadata = extractMetaDataFromMTZFile(mtzfile)
-    parameters = dict()
-    parameters["f_value"] = []
-    parameters["sigf_value"] = []
-    for line in metadata:
-        first_space = line.find(" ")
-        if len(line) > first_space + 1 + 30 + 1 and line[
-            first_space + 1 + 30 + 1] == "F":
-            parameters["f_value"].append(
-                line[7:first_space + 1 + 30 + 1].strip())
-        elif len(line) > first_space + 1 + 30 + 1 and line[
-            first_space + 1 + 30 + 1] == "Q":
-            parameters["sigf_value"].append(
-                    line[7:first_space + 1 + 30 + 1].strip())
-        elif line.startswith("SYMINF"):
-            fields = line.split()
-            #print fields[4]
-            parameters["spacegroup"] = int(fields[4])
-    return parameters
 
 
 def add_staged_file_to_dataset(rel_filepath, dataset_id,
                                mimetype="application/octet-stream"):
     """
     add file in STAGING_PATH to a dataset
+    may be replaced by main code functions.
+    quick and dirty hack to get it working
     """
     originfilepath = os.path.join(settings.STAGING_PATH, rel_filepath)
     dataset = Dataset.objects.get(pk=dataset_id)
@@ -253,7 +224,6 @@ def add_staged_file_to_dataset(rel_filepath, dataset_id,
     else:
         newDatafile.filename = full_file_path[len(settings.FILE_STORE_PATH)
                                               + len(file_dir):]
-    newDatafile.url = "file://" + full_file_path[
-        len(settings.FILE_STORE_PATH):]
+    newDatafile.url = "file://" + full_file_path
     shutil.move(originfilepath, full_file_path)
     newDatafile.save()

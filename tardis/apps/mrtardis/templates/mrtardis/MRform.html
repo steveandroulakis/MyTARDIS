@@ -2,13 +2,20 @@
 $(document).ready(function(){
     function updateParForm() {
 	$.ajax({
-	    type: "POST",
-	    url: "{% url tardis.apps.mrtardis.views.parForm experiment_id %}",
-	    data: {
-		dataset: {{ dataset }}
-	    },
+	    type: "GET",
+	    url: "{% url tardis.apps.mrtardis.views.parForm dataset.id %}",
+	    dataType: "html",
 	    success: function(data) {
-		$("#parForm").html(data);
+		$("#parform").html(data);
+	    }
+	});
+    }
+    function parseMTZfile() {
+	$.ajax({
+	    type: "GET",
+	    url: "{% url tardis.apps.mrtardis.views.parseMTZfile dataset.id %}",
+	    success: function(data) {
+		updateParForm();
 	    }
 	});
     }
@@ -26,12 +33,25 @@ $(document).ready(function(){
 	    }
 	});
     }
+    function deleteFile(file_id) {
+	$.ajax({
+	    type: "POST",
+	    url: "{% url tardis.apps.mrtardis.views.deleteFile dataset.id %}",
+	    data: {file_id: file_id},
+	    success: function(data) {
+		updateFileList(".pdb");
+	    }
+	});
+    }
+    $(".deleteFile").live('click', function(event) {
+	deleteFile($(this).attr('id'));
+	return false;
+    });
 
-    function extractPDBzips() {
-	console.log("nothing");
+    function add_pdb_files() {
 	$.ajax({
 	    type: "GET",
-	    url: "{% url tardis.apps.mrtardis.views.extractPDBzips dataset.id %}",
+	    url: "{% url tardis.apps.mrtardis.views.add_pdb_files dataset.id %}",
 	    success: function(data) {
 		updateFileList(".pdb");
 	    }
@@ -39,12 +59,20 @@ $(document).ready(function(){
     }
     updateFileList(".mtz");
     updateFileList(".pdb");
-
-    $('.upload_files_link').bind('click', function( event ){
+    updateParForm();
+    $("#refreshMTZ").bind('click',function(event) {
+	updateFileList(".mtz");
+	return false;
+    });
+    $("#refreshPDB").bind('click',function(event) {
+	updateFileList(".pdb");
+	return false;
+    });
+    $('.upload_MRfiles_link').bind('click', function( event ){
 	$('.upload_files_container').each(function(index) {
             $(this).html("");
 	});
-	$('.upload_files_link').each(function(index) {
+	$('.upload_MRfiles_link').each(function(index) {
             $(this).show();
 	});
 	var message = escape( $(this).html());
@@ -55,51 +83,99 @@ $(document).ready(function(){
 	if (message.indexOf("MTZ") != -1) {
 	    $("#uploadify").live("allUploadsComplete",
 				 function(e, data){
+				     parseMTZfile();
 				     updateFileList(".mtz");
-				     updateParForm();
 				 });
 	} else if (message.indexOf("PDB") != -1) {
 	    console.log("pdb if statement");
 	    $("#uploadify").live("allUploadsComplete",
 				 function(e, data){
 				     console.log("we're bound");
-				     extractPDBzips();
+				     add_pdb_files();
 				 });
 	}
     });
+
+    $("input[type=submit]").bind("click", function(e){
+	$(this).attr("was_clicked_to_submit","YES");
+    });
+
+    $("form#MRform").submit(function() {
+	var submitButton = $("[was_clicked_to_submit=YES]").get(0);
+	var buttontype = submitButton.value;
+	$("[was_clicked_to_submit=YES]").removeAttr("was_clicked_to_submit");
+	var formData = $("form#MRform").serializeArray();
+	$.ajax({
+	    async: false,
+	    type: "POST",
+	    url: "{% url tardis.apps.mrtardis.views.parForm dataset.id %}",
+	    data: formData,
+	    success: function(data) {
+		$("#parform").html(data);
+		if (buttontype.indexOf("Run") != -1) {
+		    $.ajax({
+			type: "GET",
+			url: "{% url tardis.apps.mrtardis.views.runMR dataset.id %}",
+			success: function(data) {
+			    $("#mrtardis").html(data);
+			},
+		    });
+		}
+	    },
+	    error: function(XMLHttpRequest, textStatus, errorThrown) {
+		console.log(textStatus);
+		console.log(errorThrown);
+		console.log(XMLHttpRequest.responseText);
+	    }
+	});
+	return false;
+    });
 });
+
 </script>
 <h2>Job/dataset name: {{ dataset.description }}</h2>
+<p style="color:red;">{{ message }}</p>
+<div id="submitted">
 <h3>MTZ file</h3>
-<p><b>Already stored files</b>
+<p><b>Already stored file</b>  <a href="#" id="refreshMTZ">[refresh]</a>
 <div id="fileList" class="mtz">
 </div></p>
-<p><b>Please upload your structure factors as MTZ file.</b> <br/>If you accidentally upload the wrong one, please cancel this form (see below) and start over.
+<p><b>Please upload your structure factors as MTZ file.</b> <br/>If you accidentally upload the wrong one, just replace it with a new one.
 </p>
 <div class="uploadMTZfile">
-  <a class="upload_files_link">Upload your MTZ file</a>
+  <a class="upload_MRfiles_link">Upload your MTZ file</a>
   <div class="upload_files_container"></div>
 </div>
 
 <h3>PDB file(s)</h3>
-<p><b>Already stored files</b>
+<p><b>Already stored files</b>  <a href="#" id="refreshPDB">[refresh]</a>
 <div id="fileList" class="pdb">
 </div></p>
 <p><b>Please upload one or more PDB files.</b><br/> You can upload them separately or in a zip file or mix both.
 </p>
 <div class="uploadPDBfiles">
-  <a class="upload_files_link">Upload your PDB file(s)</a>
+  <a class="upload_MRfiles_link">Upload your PDB file(s)</a>
   <div class="upload_files_container"></div>
   <input class="dataset_id" type="hidden" value="{{dataset.id}}" />
 </div>
 
 <h3>Run parameters</h3>
-<p>These files are going to be used for the molecular replacements
-<div id="fileList" class="mtz"></div>
-<div id="fileList" class="pdb"></div>
-<div id="parForm">
+<div>
+<style type="text/css">
+ul.errorlist li {
+font-weight: bold;
+color: red;
+}
+</style>
+<form id="MRform">
+  <div id="parform">
+  </div>
+  <div>
+    <input type="submit" id="saveForm" value="Save" />&nbsp;<input type="submit" id="saveFormRun" value="Save and Run" />
+  </div>
+</form>
 </div>
-</p>
+</div>
 
 
 <!-- debug <p>

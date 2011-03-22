@@ -1,22 +1,56 @@
-# To change this template, choose Tools | Templates
-# and open the template in the editor.
+# -*- coding: utf-8 -*-
+#
+# Copyright (c) 2010, Monash e-Research Centre
+#   (Monash University, Australia)
+# Copyright (c) 2010, VeRSI Consortium
+#   (Victorian eResearch Strategic Initiative, Australia)
+# All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#    *  Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#    *  Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in the
+#       documentation and/or other materials provided with the distribution.
+#    *  Neither the name of the VeRSI, the VeRSI Consortium members, nor the
+#       names of its contributors may be used to endorse or promote products
+#       derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE7
+# DISCLAIMED. IN NO EVENT SHALL THE REGENTS AND CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+"""
+admin.py
 
-__author__ = "grischa"
-__date__ = "$17/09/2010 3:02:10 PM$"
+.. moduleauthor::  Grischa Meyer <grischa.meyer@monash.edu>
 
-from tardis.tardis_portal.logger import logger
+"""
 
-
-if __name__ == "__main__":
-    print "Hello World"
-
-# IMPORTS
 import paramiko
 import StringIO
 import stat
+import os
+
+from tardis.tardis_portal.logger import logger
+
+import tardis.apps.mrtardis.secrets as secrets
 
 
-class hpc:
+class HPC:
+    """
+    Simplified interface to HPC resources using the paramiko ssh library.
+    Currently implemented:
+    Monash Sun Grid ("msg")
+    """
     types = ("sge", "pbs")
     queuetype = None
     hostname = None
@@ -26,13 +60,24 @@ class hpc:
     client = None
     sftpclient = None
 
-    def __init__(self, hostname, username, queuetype="sge", authtype="key",
-                 key=None, keytype=None):
-        self.queuetype = queuetype
-        self.hostname = hostname
+    def __init__(self, location, username):
+        """
+        Initialise object using a predefined cluster location string and the
+        username to be used for ssh.
+        :param location: predefined string for HPC resource to be used.
+            currently defined: "msg"
+        :type location: string
+        :param username: username used for ssh-ing into HPC resource
+        :type username: string
+        """
         self.username = username
-        self.authtype = authtype
-        if authtype == "key":
+        if location == "msg":
+            self.queuetype = "sge"
+            self.hostname = secrets.hostname
+            self.authtype = "key"
+            key = secrets.privatekey
+            keytype = "rsa"
+        if self.authtype == "key":
             self.setKey(key, keytype)
         self.client = paramiko.SSHClient()
         policy = paramiko.AutoAddPolicy()
@@ -41,6 +86,9 @@ class hpc:
                             pkey=self.privateKey)
 
     def __del__(self):
+        """
+        closes client when object is destroyed/dereferenced
+        """
         if self.client != None:
             try:
                 self.client.close()
@@ -48,6 +96,13 @@ class hpc:
                 pass
 
     def setKey(self, privateKeyString, keytype):
+        """
+        sets the private key to be used for ssh using a string and keytype
+        :param privateKeyString: string with ssh private key
+        :type privateKeyString: string
+        :param keytype: type of key entered, one of "rsa", "dss"
+        :type keytype: string
+        """
         privateKeyFileObj = StringIO.StringIO(privateKeyString)
         if keytype == "rsa":
             self.privateKey = paramiko.RSAKey.from_private_key(
@@ -57,12 +112,34 @@ class hpc:
                 privateKeyFileObj)
 
     def initSFTP(self):
+        """
+        initialises the use of SFTP and stores it in instance
+        """
         if self.sftpclient == None:
             self.sftpclient = paramiko.SFTPClient.from_transport(
                 self.client.get_transport())
 
-    def upload(self, remoterelativepath, filelist, localpath=""):
-        """upload files to hpc using path parameters"""
+    def upload(self, localfilepath, remotefile):
+        """
+        BROKEN
+        uploads a file to remote location
+        :param localfilepath: full path to local file
+        :param remotedir:
+        """
+        self.initSFTP()
+        self.getOutputError("mkdir -p ~/%s" % os.path.dirname(remotefile))
+        try:
+            self.sftpclient.put(localfilepath, self.getHomeDir() + "/"
+                                + remotefile)
+        except IOError:
+            print "IOError... shit"
+            print localfilepath
+            print self.getHomeDir() + "/" + remotefile
+
+    def upload_filelist(self, remoterelativepath, filelist, localpath=""):
+        """
+        upload files to hpc using path parameters
+        """
         self.initSFTP()
         remotepath = "/nfs/monash/home/" + self.username +\
             "/" + remoterelativepath
@@ -89,6 +166,7 @@ class hpc:
             localfilepath = localpath + "/" + filename
             remotefilepath = remotepath + "/" + filename
             self.sftpclient.get(remotefilepath, localfilepath)
+        return filteredlist
 
     def testConnection(self):
         testhost = self.getOutputError("hostname")[0]
@@ -109,6 +187,13 @@ class hpc:
         stderr.close()
         return (retout, reterr)
 
+    def runCommands(self, commandlist):
+        return [self.getOutputError(command) for command in commandlist]
+
+    def getHomeDir(self):
+        out, err = self.getOutputError("echo $HOME")
+        return out.strip()
+
     def rmtree(self, path):
         self.initSFTP()
         pathstat = self.sftpclient.lstat(path)
@@ -126,3 +211,7 @@ class hpc:
             self.sftpclient.rmdir(path)
         else:
             self.sftpclient.remove(path)
+
+    @staticmethod
+    def getPublicKey():
+        return secrets.publickey
