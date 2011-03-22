@@ -48,6 +48,8 @@ INSTALLED_APPS = (
         'django.contrib.admindocs',
         'django_extensions',
         'tardis.tardis_portal',
+        'tardis.tardis_portal.templatetags',
+        'tardis.apps.equipment',
         'registration',
         'tardis.tardis_portal.templatetags',
         'django_nose',

@@ -308,7 +308,7 @@ img.right {
 
 #bottombar {
 	clear: both;
-	width: 960px;
+	width: 1000px;
 	background: #000000;
 	color: #CCCCCC;
 	padding: 10px 0 0 0;
@@ -531,7 +531,7 @@ table.experiment-table th {
 		padding: 10px 0 10px 0;
 	}
 
-	.access_list
+	.access_list, .access_list1, .access_list2, .access_list3
 	{
 		background-color: white;
 		margin-left: 10px;
