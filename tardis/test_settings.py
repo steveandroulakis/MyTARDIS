@@ -51,7 +51,6 @@ INSTALLED_APPS = (
         'tardis.tardis_portal.templatetags',
         'tardis.apps.equipment',
         'registration',
-        'tardis.tardis_portal.templatetags',
         'django_nose',
         'south'
 )
