@@ -66,7 +66,7 @@ class Task():
     def get_param(self, parname, value=False):
         par = self.parameters.get(name__name=parname)
         if value:
-            if par.name.is_numeric:
+            if par.name.isNumeric():
                 return par.numerical_value
             else:
                 return par.string_value
@@ -75,7 +75,7 @@ class Task():
     def get_params(self, parname, value=False):
         pars = self.parameters.filter(name__name=parname)
         if value:
-            if len(pars) > 0 and pars[0].name.is_numeric:
+            if len(pars) > 0 and pars[0].name.isNumeric():
                 return [par.numerical_value
                         for par in pars]
             else:
@@ -92,7 +92,7 @@ class Task():
             param.name = self._get_create_parname(parname, fullparname)
             param.string_value = value
             param.save()
-        if param.name.is_numeric:
+        if param.name.isNumeric():
             param.numerical_value = float(value)
         else:
             param.string_value = str(value)
@@ -104,7 +104,7 @@ class Task():
         param.name = self._get_create_parname(parname, fullparname)
         param.string_value = value
         param.save()
-        if param.name.is_numeric:
+        if param.name.isNumeric():
             param.numerical_value = float(value)
         else:
             param.string_value = str(value)
@@ -144,11 +144,11 @@ class Task():
             if example_value:
                 try:
                     float(example_value)
-                    paramName.is_numeric = True
+                    paramName.datatype = ParameterName.NUMERIC
                 except (TypeError, ValueError):
-                    paramName.is_numeric = False
+                    paramName.datatype = ParameterName.STRING
             else:
-                paramName.is_numeric = False
+                paramName.datatype = ParameterName.STRING
             paramName.is_searchable = True
             paramName.save()
         return paramName
