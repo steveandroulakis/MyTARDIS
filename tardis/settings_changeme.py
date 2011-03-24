@@ -121,6 +121,7 @@ INSTALLED_APPS = (
     'tardis.tardis_portal',
     'registration',
     'tardis.tardis_portal.templatetags',
+    'tardis.apps.equipment',
     'south'
     ) + apps
 
