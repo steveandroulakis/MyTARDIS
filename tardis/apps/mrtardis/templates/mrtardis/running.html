@@ -1,0 +1,21 @@
+<script type="text/javascript">
+$(document).ready(function(){
+    $("#backToOverview").bind("click", function(event) {
+	$.ajax({
+	    type: "GET",
+	    url: "{% url tardis.apps.mrtardis.views.index experiment_id %}",
+	    dataType: "html",
+	    success: function(data) {
+		$("#mrtardis").html(data);
+	    },
+	});
+    });
+});
+</script>
+<h2>Your job is now being advertised, I mean, executed.</h2>
+<p>Your job IDs on the HPC are:<br/>
+{{ jobids }}
+</p>
+<p>
+<a href="#" id="backToOverview">Back to Overview</a>
+</p>

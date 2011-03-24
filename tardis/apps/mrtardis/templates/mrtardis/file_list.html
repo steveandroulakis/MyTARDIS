@@ -1,0 +1,7 @@
+<ul>
+{% for datafile in filequeryset %}
+  <li class="datafile">
+    {{ datafile.filename }}&nbsp;<a id="{{ datafile.id }}" class="deleteFile" href="#">[delete file]</a>
+  </li>
+{% endfor %}
+</ul>

@@ -1,0 +1,18 @@
+<script type="text/javascript" src="/site_media/js/jquery.formset.min.js"></script>
+<script type="text/javascript">
+$('.rmsd-form').formset({'addText':"Add another RMSD value"});
+</script>
+<table>
+    {{ paramForm }}
+<tr><td colspan='2'>--- Add as many RMSD values as you like ---</td></tr>
+    {% for form in rmsdForms.forms %}
+      <tr id="{{ form.prefix }}-row" class="rmsd-form">
+	<th><label for="{{ form.prefix }}-rmsd">RMSD:</label></th>
+	<td>{{ form.rmsd }}</td>
+      </tr>
+    {% endfor %}
+  {{ rmsdForms.management_form }}
+</table>
+{% if saved %}
+<p style="color:red;font-weight:bold;">{{ saved }}</p>
+{% endif %}
