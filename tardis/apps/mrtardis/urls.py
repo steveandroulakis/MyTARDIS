@@ -1,4 +1,4 @@
-from django.conf.urls.defaults import patterns
+from django.conf.urls.defaults import patterns, include, handler500, handler404
 
 urlpatterns = patterns('tardis.apps.mrtardis.views',
                        (r'^index/(?P<experiment_id>\d+)/$',
