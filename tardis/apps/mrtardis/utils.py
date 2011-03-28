@@ -59,7 +59,7 @@ def test_hpc_connection(user):
     logger.debug("testing if user exists")
     try:
         hpcuser = HPCUser.objects.get(user=user)
-    except HPCUser.DoesNotExist:
+    except (HPCUser.DoesNotExist, TypeError):
         return False
     #logger.debug(dir(hpcuser))
     if hpcuser.testedConnection:
