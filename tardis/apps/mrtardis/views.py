@@ -11,6 +11,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from tardis.tardis_portal.models import Dataset
 from tardis.tardis_portal.models import Dataset_File
 from tardis.tardis_portal.auth import decorators as authz
+from tardis.tardis_portal.ajax import ajax_only
 
 from tardis.apps.mrtardis.utils import test_hpc_connection
 from tardis.apps.mrtardis.models import HPCUser
@@ -24,6 +25,8 @@ from tardis.apps.mrtardis.mrtask import MRtask
 #from tardis.tardis_portal.logger import logger
 
 
+@authz.experiment_access_required
+@ajax_only
 def index(request, experiment_id):
     """
     return start page for MR processing
@@ -64,6 +67,8 @@ def index(request, experiment_id):
     return render_to_response('mrtardis/index.html', c)
 
 
+@authz.experiment_access_required
+@ajax_only
 def test_user_setup(request, experiment_id):
     """
     tests whether user is setup for HPC processing and presents setup form
@@ -80,7 +85,6 @@ def test_user_setup(request, experiment_id):
             newHPCUser = HPCUser(user=request.user,
                                  hpc_username=hpc_username)
             newHPCUser.save()
-           # print reverse('index', args=[experiment_id])
             return HttpResponseRedirect(reverse(
                     'tardis.apps.mrtardis.views.index',
                     args=[experiment_id]))
@@ -93,6 +97,8 @@ def test_user_setup(request, experiment_id):
     return render_to_response("mrtardis/usersetup.html", c)
 
 
+@authz.experiment_access_required
+@ajax_only
 def MRform(request, experiment_id):
     """
     setup of a new MR process overview
@@ -128,6 +134,8 @@ def MRform(request, experiment_id):
     return render_to_response("mrtardis/MRform.html", c)
 
 
+@authz.experiment_access_required
+@ajax_only
 def displayResults(request, experiment_id):
     """
     display results of POST submitted dataset in experiment_id
@@ -143,6 +151,7 @@ def displayResults(request, experiment_id):
 
 
 @authz.dataset_access_required
+@ajax_only
 def type_filtered_file_list(request, dataset_id):
     """
     show list of files in dataset_id filtered by POST['type']
@@ -161,6 +170,8 @@ def type_filtered_file_list(request, dataset_id):
     return render_to_response('mrtardis/file_list.html', c)
 
 
+@authz.dataset_access_required
+@ajax_only
 def add_pdb_files(request, dataset_id):
     """
     Extracts pdb files out of zips, adds them to the dataset and
@@ -174,6 +185,8 @@ def add_pdb_files(request, dataset_id):
     return HttpResponse("true")
 
 
+@authz.dataset_access_required
+@ajax_only
 def parseMTZfile(request, dataset_id):
     """
     parse MTZ file to extract metadata
@@ -188,6 +201,8 @@ def parseMTZfile(request, dataset_id):
         return HttpResponseNotFound()
 
 
+@authz.dataset_access_required
+@ajax_only
 def parForm(request, dataset_id):
     """
     shows/saves django form for MR parameters
@@ -246,6 +261,8 @@ def parForm(request, dataset_id):
     return render_to_response("mrtardis/parform.html", c)
 
 
+@authz.dataset_access_required
+@ajax_only
 def runMR(request, dataset_id):
     """
     runs molecular replacement if all inputs are complete
@@ -271,6 +288,8 @@ def runMR(request, dataset_id):
     return render_to_response("mrtardis/running.html", c)
 
 
+@authz.dataset_access_required
+@ajax_only
 def deleteFile(request, dataset_id):
     """
     delete a file completely, totally and utterly
@@ -288,6 +307,8 @@ def deleteFile(request, dataset_id):
     return HttpResponseNotFound()
 
 
+@authz.experiment_access_required
+@ajax_only
 def runningJobs(request, experiment_id):
     MRlist = [thistask
               for thistask in
