@@ -351,6 +351,7 @@ class MetsMetadataInfoHandler(ContentHandler):
 
         elif elName == 'abstract' and self.processExperimentStruct:
             self.grabAbstract = True
+            self.metsObject.description = ''
 
         elif elName == 'name' and self.processExperimentStruct:
             self.inName = True
@@ -644,7 +645,7 @@ class MetsMetadataInfoHandler(ContentHandler):
                                 createParamSetFlag['datafile'] = False
 
             except models.Schema.DoesNotExist:
-                logger.warning('unsupported schema being ingested' +
+                logger.warning('unsupported schema being ingested ' +
                     self.elementNamespace)
 
             # reset the current xmlData child element so that if a new
@@ -694,7 +695,7 @@ class MetsMetadataInfoHandler(ContentHandler):
             elif self.grabExperimentUrl:
                 self.metsObject.url = chars
             elif self.grabAbstract:
-                self.metsObject.description = chars
+                self.metsObject.description += chars
             elif self.grabMightBeAuthor:
                 self.mightBeAuthor = chars
 
