@@ -208,7 +208,7 @@ class Task():
         except ObjectDoesNotExist:
             try:
                 par = self.parameters.get(numerical_value=value)
-            except ObjectDoesNotExist:
+            except (ObjectDoesNotExist, ValueError):
                 return None
         return par
 
@@ -232,8 +232,14 @@ class Task():
         for newfile in newfiles:
             add_staged_file_to_dataset(newfile, self.dataset.id)
         hpclink.rmtree(self.get_hpc_dir())
-        self.set_status("retrieved")
+        self.set_status("finished")
         return True
+
+    def parseResults(self):
+        """
+        stub, to be overridden by subclass if needed
+        """
+        pass
 
     @staticmethod
     def extractJobID(inputstring):

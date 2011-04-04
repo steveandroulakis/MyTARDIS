@@ -36,6 +36,7 @@ mrtask.py
 """
 
 import os
+import re
 import zipfile
 
 from django.core.exceptions import ObjectDoesNotExist
@@ -81,13 +82,6 @@ class MRtask(Task):
         self.set_status("running")
         self.set_param_list("jobid", jobids)
         return jobids
-
-    def retrieve_task(self):
-        """
-        retrieve files from cluster
-        STUB
-        """
-        pass
 
     def add_pdb_files(self):
         """
@@ -280,6 +274,45 @@ class MRtask(Task):
                         self.dataset.id,
                         mimetype="application/x-shellscript")
                     self.new_param("jobscript", jobfilename)
+
+    def parseResults(self):
+        # example: SOLU SET RFZ=2.2 TFZ=3.5 PAK=0 LLG=-350 LLG=-349
+        regexstring = "SOLU SET RFZ=[+-]?\d*\.\d+ TFZ=([+-]?\d*\.\d+)" +\
+            " PAK=[+-]?\d*\d+ LLG=[+-]?\d*\d+ LLG=([+-]?\d*\d+)"
+        parsesol = re.compile(regexstring)
+        resultsArray = []
+
+        def get_DF_by_name(name):
+            return Dataset_File.objects.get(dataset=self.dataset,
+                                            filename=name)
+        # get basename from jobscript
+        for job in self.get_params("jobscript", value=True):
+            basename = job[:-8]
+            pdb_file, spacegroup, rmsd = basename.split("_")
+            mtzresultDF = get_DF_by_name(basename + "_result.1.mtz")
+            pdbresultDF = get_DF_by_name(basename + "_result.1.pdb")
+            solfileDF = get_DF_by_name(basename + "_result.sol")
+            sumfileDF = get_DF_by_name(basename + "_result.sum")
+            solfile = open(solfileDF.get_absolute_filepath(), 'r')
+            sollines = solfile.readlines()
+            solfile.close()
+            solresults = parsesol.search(sollines[2])
+            print sollines[2]
+            print solresults
+            zScore = solresults.group(1)
+            LLG = solresults.group(2)
+            resultsArray.append({'name': basename,
+                                 'pdb_file': pdb_file,
+                                 'spacegroup': spacegroup,
+                                 'rmsd': rmsd,
+                                 'mtzresult': mtzresultDF,
+                                 'pdbresult': pdbresultDF,
+                                 'solfile': solfileDF,
+                                 'sumfile': sumfileDF,
+                                 'zScore': zScore,
+                                 'LLG': LLG,
+                                 })
+        return resultsArray
 
     @staticmethod
     def processMTZ(mtzfile):

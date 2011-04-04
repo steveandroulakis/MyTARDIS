@@ -134,22 +134,6 @@ def MRform(request, experiment_id):
     return render_to_response("mrtardis/MRform.html", c)
 
 
-@authz.experiment_access_required
-@ajax_only
-def displayResults(request, experiment_id):
-    """
-    display results of POST submitted dataset in experiment_id
-    :param experiment_id: experiment id containing results
-    :type experiment_id: integer
-    :returns: mrtardis/displayResults.html
-    """
-    c = Context({
-            'sometext': "describing what to do dep on context",
-            'experiment_id': experiment_id,
-            })
-    return render_to_response("mrtardis/displayResults.html", c)
-
-
 @authz.dataset_access_required
 @ajax_only
 def type_filtered_file_list(request, dataset_id):
@@ -297,12 +281,13 @@ def deleteFile(request, dataset_id):
     """
     if request.POST and "file_id" in request.POST:
         file_id = request.POST["file_id"]
-        file = Dataset_File.objects.get(pk=file_id)
+        thisfile = Dataset_File.objects.get(pk=file_id)
         thisMR = MRtask(dataset_id=dataset_id)
-        par = thisMR.get_by_value(file.filename)
+        par = thisMR.get_by_value(thisfile.filename)
+        print par
         if par != None:
             par.delete()
-        file.deleteCompletely()
+        thisfile.deleteCompletely()
         return HttpResponse("true")
     return HttpResponseNotFound()
 
@@ -331,3 +316,31 @@ def jobfinished(request, dataset_id):
             thisMR.new_param("jobidstatus", jobid + "-finished")
     thisMR.retrievalTrigger()
     return HttpResponse("true")
+
+
+@authz.experiment_access_required
+@ajax_only
+def displayResults(request, experiment_id):
+    """
+    display results of POST submitted dataset in experiment_id
+    :param experiment_id: experiment id containing results
+    :type experiment_id: integer
+    :returns: mrtardis/displayResults.html
+    """
+    if 'dataset' in request.POST:
+        thisMR = MRtask(dataset_id=request.POST['dataset'])
+    else:
+        return HttpResponseNotFound()
+    results = thisMR.parseResults()
+    c = Context({
+            'dataset': thisMR.dataset,
+            'results': results,
+            'experiment_id': experiment_id,
+            'f_value': thisMR.get_param("f_value", value=True),
+            'sigf_value': thisMR.get_param("sigf_value", value=True),
+            'mol_weight': thisMR.get_param("mol_weight", value=True),
+            'num_in_asym': thisMR.get_param("num_in_asym", value=True),
+            'packing': thisMR.get_param("packing", value=True),
+            'ensemble_number': thisMR.get_param("ensemble_number", value=True),
+            })
+    return render_to_response("mrtardis/displayResults.html", c)

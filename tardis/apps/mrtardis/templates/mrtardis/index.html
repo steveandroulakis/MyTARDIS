@@ -64,7 +64,6 @@ $(document).ready(function() {
 	    type: "POST",
 	    url: "{% url tardis.apps.mrtardis.views.displayResults experiment_id %}",
 	    data: postdata,
-	    //dataType: "json",
 	    success: function(data) {
 		$("#mrtardis").html(data);
 	    }
@@ -96,7 +95,9 @@ $(document).ready(function() {
   {% if viewForm %}
     <p>
       <b>View the results of finished runs</b>
-      <form >{{ viewForm }}</form>
+      <form id="viewDS">{{ viewForm }}
+      <input type="submit" value="Show Results" />
+      </form>
     </p>
   {% endif %}
   {% if rerunForm %}

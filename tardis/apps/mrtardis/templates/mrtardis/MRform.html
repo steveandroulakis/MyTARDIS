@@ -43,7 +43,7 @@ $(document).ready(function(){
 	    }
 	});
     }
-    $(".deleteFile").live('click', function(event) {
+    $(".deleteFile").die().live('click', function(event) {
 	deleteFile($(this).attr('id'));
 	return false;
     });
@@ -179,6 +179,6 @@ color: red;
 
 
 <!-- debug <p>
-Dataset ID: {{ dataset }}
+Dataset ID: {{ dataset.id }}
 Experiment ID: {{ experiment_id }}
 </p> -->
