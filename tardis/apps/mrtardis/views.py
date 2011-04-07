@@ -263,13 +263,21 @@ def runMR(request, dataset_id):
         request.POST['action'] = "continue"
         request.POST['dataset'] = dataset_id
         request.POST['message'] = "Some parameters are missing"
-        experiment_id = Dataset.objects.get(pk=dataset_id).experiment.id
-        return MRform(request, experiment_id)
+        return access_error_avoider_function(request, dataset_id)
+#        experiment_id = Dataset.objects.get(pk=dataset_id).experiment.id
+#        return MRform(request, experiment_id)
     c = Context({
             'jobids': jobids,
             'experiment_id': experiment_id,
             })
     return render_to_response("mrtardis/running.html", c)
+
+
+@authz.dataset_access_required
+@ajax_only
+def access_error_avoider_function(request, dataset_id):
+    experiment_id = Dataset.objects.get(pk=dataset_id).experiment.id
+    return MRform(request, experiment_id)
 
 
 @authz.dataset_access_required

@@ -1,4 +1,13 @@
 <h2>Results of  {{ dataset.description }}</h2>
+<h3>Results overview</h3>
+<table style="border:1px solid black;">
+<tr><th>Name</th><th>zScore</th><th>LLG</th></tr>
+{% for result in results|dictsort:"zScore" %}
+<tr><td><a href="#{{ result.name }}">{{ result.name }}</a></td>
+<td>{{ result.zScore }}</td>
+<td>{{ result.LLG }}</td></tr>
+{% endfor %}
+</table>
 <p><b>Common run parameters:</b></p>
 <table>
 <tr><th>F column:</th><td> {{ f_value }}</td></tr>
@@ -6,16 +15,34 @@
 <tr><th>Molecular weight:</th><td> {{ mol_weight }}</td></tr>
 <tr><th>Number of Molecules in ASU:</th><td> {{ num_in_asym }}</td></tr>
 <tr><th>Packing cutoff:</th><td> {{ packing }}</td></tr>
-<tr><th>Number of copies to search for:</td></tr> {{ ensemble_number }}</td></tr>
+<tr><th>Number of copies to search for:</td><td> {{ ensemble_number }}</td></tr>
 </table>
-<p>
+<p><hr/></p>
 {% for result in results %}
-
-<h3>Name: {{ result.name }}</h3>
-<p><b>Parameters used:</b></p>
-<p>PDB file: {{ pdb_file }}<br />
-Space group: {{ spacegroup }}<br />
-RMSD: {{ rmsd }}</p>
-
+<h3><a name="{{ result.name }}">Name: {{ result.name }}</a></h3>
+<table>
+<tr><th>zScore:</th><td> {{ result.zScore }}</td></tr>
+<tr><th>LLG:</th><td> {{ result.LLG }}</td></tr>
+</table>
+<p><b>Other outputs:</b></p>
+<table>
+<tr><th>MTZ file created:</th><td>
+<a href="{% url tardis.tardis_portal.download.download_datafile result.mtzresult.id %}">{{ result.mtzresult.filename }}</a>
+</td></tr>
+<tr><th>PDB file created:</th><td>
+<a href="{% url tardis.tardis_portal.download.download_datafile result.pdbresult.id %}">{{ result.pdbresult.filename }}</a>
+</td></tr>
+<tr><th>.sol file:</th><td>
+<a href="{% url tardis.tardis_portal.download.download_datafile result.solfile.id %}">{{ result.solfile.filename }}</a>
+</td></tr>
+<tr><th>.sum file:</th><td>
+<a href="{% url tardis.tardis_portal.download.download_datafile result.sumfile.id %}">{{ result.sumfile.filename }}</a>
+</td></tr>
+</table>
+<p><b>Run parameters:</b></p>
+<table>
+<tr><th>PDB file:</th><td> {{ result.pdb_file }}</td></tr>
+<tr><th>Space group:</th><td> {{ result.spacegroup }}</td></tr>
+<tr><th>RMSD:</th><td> {{ result.rmsd }}</td></tr>
+</table>
 {% endfor %}
-</p>
