@@ -279,3 +279,39 @@ class Task():
             except ObjectDoesNotExist:
                 continue
         return filteredlist
+
+    @classmethod
+    def clone(cls, oldInstance, newDescription):
+        newInstance = cls(description=newDescription,
+                          experiment_id=oldInstance.dataset.experiment.id)
+        doNotCopyParams = ['TaskStatus',
+                           'readyToSubmit',
+                           'jobscript',  # many
+                           'hpc_directory',
+                           'uploaded_file',  # many
+                           'jobid',  # many
+                           'jobidstatus',  # many
+                           ]
+        for param in oldInstance.parameters:
+            if param.name.name not in doNotCopyParams:
+                if param.name.isNumeric():
+                    value = param.numerical_value
+                else:
+                    value = param.string_value
+                newInstance.new_param(param.name.name, value)
+        import shutil
+        for filename in oldInstance.get_params("uploaded_file", value=True):
+            print filename[-8:]
+            if filename[-8:] != ".jobfile":
+                print 'yes'
+                print filename
+                thisfile = Dataset_File.objects.get(
+                    dataset=oldInstance.dataset,
+                    filename=filename)
+                print thisfile
+                shutil.copy(thisfile.get_absolute_filepath(),
+                            settings.STAGING_PATH)
+                add_staged_file_to_dataset(filename, newInstance.dataset.id,
+                                           thisfile.mimetype)
+                pass  # copy file to new dataset
+        return newInstance

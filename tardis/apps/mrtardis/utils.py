@@ -225,5 +225,7 @@ def add_staged_file_to_dataset(rel_filepath, dataset_id,
         newDatafile.filename = full_file_path[len(settings.FILE_STORE_PATH)
                                               + len(file_dir):]
     newDatafile.url = "file://" + full_file_path
+    if not os.path.exists(os.path.dirname(full_file_path)):
+        os.makedirs(os.path.dirname(full_file_path))
     shutil.move(originfilepath, full_file_path)
     newDatafile.save()

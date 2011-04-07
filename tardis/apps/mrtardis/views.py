@@ -120,7 +120,12 @@ def MRform(request, experiment_id):
         dataset = Dataset.objects.get(pk=int(request.POST['dataset']))
         pass  # load existing parameters into form
     elif action == "rerunDS":
-        dataset = Dataset.objects.get(pk=request.POST['dataset'])
+        olddataset = Dataset.objects.get(pk=request.POST['dataset'])
+        oldMRtask = MRtask(dataset=olddataset)
+        newMRtask = MRtask.clone(oldInstance=oldMRtask,
+                                 newDescription=request.POST['description'])
+        newMRtask.set_status("unsubmitted")
+        dataset = newMRtask.dataset
         pass  # run new MR based on finished one
     if "message" in request.POST:
         message = request.POST['message']

@@ -53,7 +53,7 @@ $(document).ready(function() {
     }
     $("form[id=newDS]").bind("submit", function() {
 	postdata = {'action': 'newDS',
-		    'description': $("#id_description").val(),
+		    'description': $("#newDS #id_description").val(),
 		   }
 	respondToForm(postdata);
 	return false;
@@ -68,6 +68,7 @@ $(document).ready(function() {
     $("form[id=rerunDS]").bind("submit", function() {
 	postdata = {'action': 'rerunDS',
 		    'dataset': $("#rerunDS #id_dataset").val(),
+                    'description': $("#rerunDS #id_description").val(),
 		   }
 	respondToForm(postdata);
 	return false;
@@ -122,8 +123,12 @@ $(document).ready(function() {
   {% endif %}
   {% if rerunForm %}
     <p>
-      <b>Copy, edit and re-run a previous Molecular Replacement</b>
-      <form >{{ rerunForm }}</form>
+      <b>New MR based on previous one</b><br/>
+      Enter a new description
+      <form id="rerunDS">Based on {{ rerunForm }} <br/>
+      {{ newDSForm }}
+      <input type="submit" value="Clone and edit" />
+      </form>
     </p>
   {% endif %}
 
