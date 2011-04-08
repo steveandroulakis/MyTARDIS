@@ -34,7 +34,13 @@ def index(request, experiment_id):
     :type experiment_id: integer
     :returns: mrtardis/index.html template
     """
-    hpc_username = test_hpc_connection(request.user)
+    hpc_error = False
+    hpc_username = False
+    try:
+        hpc_username = test_hpc_connection(request.user)
+    except Exception, e:
+        hpc_error = e
+
     newDSForm = DatasetDescriptionForm()
 
     def getChoices(status):
@@ -56,15 +62,15 @@ def index(request, experiment_id):
     else:
         rerunForm = False
 
-    c = Context({
-            'newDSForm': newDSForm,
-            'continueForm': continueForm,
-            'viewForm': viewForm,
-            'rerunForm': rerunForm,
-            'experiment_id': experiment_id,
-            'hpc_username': hpc_username,
-            })
-    return render_to_response('mrtardis/index.html', c)
+    c = {'newDSForm': newDSForm,
+         'continueForm': continueForm,
+         'viewForm': viewForm,
+         'rerunForm': rerunForm,
+         'experiment_id': experiment_id,
+         'hpc_username': hpc_username,
+         'hpc_error': hpc_error,
+         }
+    return render_to_response('mrtardis/index.html',  Context(c))
 
 
 @authz.experiment_access_required
@@ -82,9 +88,14 @@ def test_user_setup(request, experiment_id):
         form = HPCSetupForm(request.POST)
         if form.is_valid():
             hpc_username = form.cleaned_data['hpc_username']
-            newHPCUser = HPCUser(user=request.user,
-                                 hpc_username=hpc_username)
-            newHPCUser.save()
+            try:
+                thisHPCUser = HPCUser.objects.get(user=request.user)
+            except ObjectDoesNotExist:
+                thisHPCUser = HPCUser(user=request.user,
+                                      hpc_username=hpc_username)
+            thisHPCUser.hpc_username = hpc_username
+            thisHPCUser.testedConnection = False
+            thisHPCUser.save()
             return HttpResponseRedirect(reverse(
                     'tardis.apps.mrtardis.views.index',
                     args=[experiment_id]))

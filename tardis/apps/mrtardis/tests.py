@@ -20,6 +20,7 @@ class ViewsTestCase(TestCase):
         from tardis.tardis_portal.models import Experiment
         from tardis.tardis_portal.models import ExperimentACL
         from tardis.tardis_portal.models import Dataset
+        from tardis.apps.mrtardis.mrtask import MRtask
         user = 'tardis_user1'
         pwd = 'secret'
         email = ''
@@ -43,7 +44,7 @@ class ViewsTestCase(TestCase):
         self.test_dataset = Dataset(experiment=self.experiment,
                                     description="test dataset")
         self.test_dataset.save()
-        print acl
+        self.test_mrtask = MRtask(dataset=self.test_dataset)
 
     def test_view_index(self):
         response = self.client.get('/apps/mrtardis/index/%d/' %
@@ -78,20 +79,21 @@ class ViewsTestCase(TestCase):
                           'expectedoutcome': ""},
                          {'postdata':
                               {'action': 'rerunDS',
-                               'dataset': '1'},
+                               'dataset': '1',
+                               'description': "test-rerun"},
                           'expectedoutcome': ""},
                          ]
         for actiontype in postdataarray:
             postdata = actiontype['postdata']
             response = self.client.post(posturl, postdata,
                                         HTTP_X_REQUESTED_WITH='XMLHttpRequest')
-            self.assertEqual(len(response.content), 4669)
+            self.assertEqual(response.status_code, 200)
 
-    def test_views_displayResults(self):
-        posturl = '/apps/mrtardis/displayResults/%d/' % self.experiment.id
-        response = self.client.post(posturl, {'dataset': 1},
-                                    HTTP_X_REQUESTED_WITH='XMLHttpRequest')
-        self.assertEqual(response.status_code, 200)
+#    def test_views_displayResults(self):
+#        posturl = '/apps/mrtardis/displayResults/%d/' % self.experiment.id
+#        response = self.client.post(posturl, {'dataset': 1},
+#                                    HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+#        self.assertEqual(response.status_code, 200)
 
     def test_views_type_filtered_file_list(self):
         posturl = '/apps/mrtardis/type_filtered_file_list/%d/' %\
@@ -103,7 +105,43 @@ class ViewsTestCase(TestCase):
             self.assertEqual(response.status_code, 200)
 
     def test_views_add_pdb_files(self):
-        from tardis.tardis_portal.models import Dataset
-        posturl = '/apps/mrtardis/type_filtered_file_list/%d/' %\
+        geturl = '/apps/mrtardis/add_pdb_files/%d/' %\
             self.test_dataset.id
+        response = self.client.get(geturl,
+                                   HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(response.status_code, 200)
 
+
+class MRtaskTestCase(TestCase):
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        from tardis.tardis_portal.models import Experiment
+        from tardis.tardis_portal.models import ExperimentACL
+        from tardis.tardis_portal.models import Dataset
+        from tardis.apps.mrtardis.mrtask import MRtask
+        user = 'tardis_user1'
+        pwd = 'secret'
+        email = ''
+        self.user = User.objects.create_user(user, email, pwd)
+        self.experiment = Experiment(approved=True,
+                                     title="Test Experiment",
+                                     institution_name="Test Institution",
+                                     created_by=self.user,
+                                     public=False)
+        self.experiment.save()
+        acl = ExperimentACL(pluginId="django_user",
+                            entityId="1",
+                            experiment=self.experiment,
+                            canRead=True,
+                            canWrite=True,
+                            canDelete=True,
+                            isOwner=True)
+        acl.save()
+        self.test_dataset = Dataset(experiment=self.experiment,
+                                    description="test dataset")
+        self.test_dataset.save()
+        self.test_mrtask = MRtask(dataset=self.test_dataset)
+
+    def test_mrtask(self):
+        self.assertEqual(len(self.test_mrtask.parameters), 0)
