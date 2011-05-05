@@ -165,9 +165,11 @@ class MRtask(Task):
                        "ensemble_number"]
         for par_string in par_strings:
             try:
-                formargs[par_string] = self.get_param(par_string, value=True)
+                thisvalue = self.get_param(par_string, value=True)
             except ObjectDoesNotExist:
                 ready = False
+            if thisvalue != None and thisvalue != "None":
+                formargs[par_string] = thisvalue
 
         try:
             formargs["sg_all"] = self.get_param(

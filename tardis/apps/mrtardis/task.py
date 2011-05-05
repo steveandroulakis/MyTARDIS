@@ -113,7 +113,8 @@ class Task():
     def set_param_list(self, parname, value_list, fullparname=None):
         self.delete_params(parname)
         for value in value_list:
-            self.new_param(parname, value, fullparname)
+            if value != None:
+                self.new_param(parname, value, fullparname)
 
     def set_params_from_dict(self, dict):
         print type(dict)
@@ -121,7 +122,8 @@ class Task():
             if type(value) is list:
                 self.set_param_list(key, value)
             else:
-                self.set_param(key, value)
+                if value != None:
+                    self.set_param(key, value)
 
     def delete_params(self, parname):
         params = self.get_params(parname)
@@ -219,6 +221,7 @@ class Task():
                 return False
         self.set_status("readyToRetrieve")
         self.retrieveFromHPC()
+        return True
 
     def retrieveFromHPC(self, location="msg"):
         if self.get_status(value=True) != "readyToRetrieve":
@@ -240,6 +243,18 @@ class Task():
         stub, to be overridden by subclass if needed
         """
         pass
+
+    def sendMail(self, toName, toAddress, returnURI,
+                 type="JobComplete"):
+        from django.core.mail import send_mail
+        subject = "Your Task %s is complete" % self.dataset.description
+        message = "Dear %s,\n" % toName
+        message += "\nYour job %s is complete " % self.dataset.description
+        message += "and the results are stored in myTardis.\n"
+        message += "HOSTNAME\n"
+        message += "\nBest regards,\nYour myTardis\n"
+        send_mail(subject, message, 'mytardis@example.com',
+                  [toAddress])
 
     @staticmethod
     def extractJobID(inputstring):

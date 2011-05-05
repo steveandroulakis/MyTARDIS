@@ -235,19 +235,21 @@ def parForm(request, dataset_id):
                               request.POST)
         rmsd_formfactory = formset_factory(RmsdForm)
         rmsdForms = rmsd_formfactory(request.POST)
-        print rmsdForms.is_valid()
-        print rmsdForms.errors
-        print "is validated"
+#        print rmsdForms.is_valid()
+#        print rmsdForms.errors
+#        print paramForm.is_valid()
+#        print paramForm.errors
         if paramForm.is_valid() and rmsdForms.is_valid():
+            #print "is validated"
             thisMR.set_params_from_dict(paramForm.cleaned_data)
             thisMR.delete_params("rmsd")
-            print rmsdForms.cleaned_data
+            #print rmsdForms.cleaned_data
             thisMR.set_param_list("rmsd",
                                   [r.cleaned_data['rmsd']
                                    for r in rmsdForms.forms
                                    if 'rmsd' in r.cleaned_data
                                    and r.cleaned_data['rmsd']])
-            print thisMR.get_params("rmsd")
+            #print thisMR.get_params("rmsd")
             contextdict["saved"] = "Saved successfully"
     formargs = thisMR.get_form_dictionary()
     if len(formargs["space_group"]) == 0:
@@ -345,7 +347,10 @@ def jobfinished(request, dataset_id):
     for jid in thisMR.get_params("jobid", value=True):
         if jid == jobid:
             thisMR.new_param("jobidstatus", jobid + "-finished")
-    thisMR.retrievalTrigger()
+    if thisMR.retrievalTrigger() and request.user.email != '':
+        thisMR.sendMail(request.user.get_full_name(),
+                        request.user.email,
+                        request.build_absolute_uri("/"))
     return HttpResponse("true")
 
 
