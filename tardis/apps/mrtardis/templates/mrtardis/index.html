@@ -105,7 +105,7 @@ $(document).ready(function() {
 </script>
 <p id="cancelbutton" style="text-align:right;"><a href="#cancel">Cancel</a></p>
 {% if hpc_error %}
-<p><b>There was an error with the HPC connection</b><br/>
+<p style="color:red;"><b>There was an error with the HPC connection</b><br/>
 Please check your username. If the problem persists, please contact the myTardis administrator and provide the following error message: {{ hpc_error }}</p>
 {% endif %}
 <p id="setupHPC"></p>
@@ -151,7 +151,7 @@ Please check your username. If the problem persists, please contact the myTardis
   </p> -->
 </div>
 <p id="HPCset-up" style="text-align: right; font-size:80%;">
-Your HPC resource is set up and ready to use. You are using authcate username {{ hpc_username }} on the Monash Sun Grid.<br /><a href="#changeUsername" >Change username</a>
+Your HPC resource is set up and ready to use. You are using authcate username <em> {{ hpc_username }} </em>on the Monash Sun Grid.<br /><a href="#changeUsername" >Change username</a>
 </p>
 <p id="cancelbutton"><a href="#cancel">Cancel</a></p>
 </div>
