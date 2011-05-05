@@ -13,6 +13,14 @@ $('.rmsd-form').formset({'addText':"Add another RMSD value"});
     {% endfor %}
   {{ rmsdForms.management_form }}
 </table>
+{% if formerrors %}
+{{ formerrors }}
+{% endif %}
+{% if rmsderrors %}
+{% for rmsderror in rmsderrors %}
+{{ rmsderror }}
+{% endfor %}
+{% endif %}
 {% if saved %}
 <p style="color:red;font-weight:bold;">{{ saved }}</p>
 {% endif %}

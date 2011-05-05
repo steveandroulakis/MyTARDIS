@@ -227,6 +227,8 @@ def parForm(request, dataset_id):
         sg_num = int(thisMR.get_param("spacegroup_mtz").string_value)
     except ObjectDoesNotExist:
         sg_num = None
+    formerrors = None
+    rmsderrors = None
     if request.method == 'POST':
         print request.POST
         paramForm = ParamForm(f_choices,
@@ -251,6 +253,11 @@ def parForm(request, dataset_id):
                                    and r.cleaned_data['rmsd']])
             #print thisMR.get_params("rmsd")
             contextdict["saved"] = "Saved successfully"
+        else:
+            if paramForm.errors:
+                formerrors = paramForm.errors
+            elif rmsdForms.errors:
+                rmsderrors = rmsdForms.errors
     formargs = thisMR.get_form_dictionary()
     if len(formargs["space_group"]) == 0:
         formargs["space_group"] = [sg_num]
@@ -266,6 +273,9 @@ def parForm(request, dataset_id):
     rmsdForms = rmsd_formfactory(initial=rmsds)
     contextdict['paramForm'] = paramForm
     contextdict['rmsdForms'] = rmsdForms
+    if formerrors or rmsderrors:
+        contextdict['formerrors'] = formerrors
+        contextdict['rmsderrors'] = rmsderrors
     c = Context(contextdict)
     return render_to_response("mrtardis/parform.html", c)
 
