@@ -67,7 +67,7 @@ class MRtask(Task):
         :type user: string
         """
         username = HPCUser.objects.get(user=request.user).hpc_username
-        print self.get_status()
+        #print self.get_status()
         try:
             ready = self.get_param("readyToSubmit", value=True) == "yes"
         except ObjectDoesNotExist:
@@ -76,9 +76,9 @@ class MRtask(Task):
             return False
         self.makeJobScripts(request)
         self.stageToHPC(username)
-        print "staged"
+        #print "staged"
         jobids = self.run_staged_task(username)
-        print jobids
+        #print jobids
         self.set_status("running")
         self.set_param_list("jobid", jobids)
         return jobids
@@ -246,9 +246,12 @@ class MRtask(Task):
             reverse('tardis.apps.mrtardis.views.jobfinished',
                     args=[self.dataset.id]))
         wget_command = "wget -O - %s?jobid=$JOB_ID" % pingurl
-        #pbs_footer = "while [[ \"true\" != `%s` ]]; do continue; done\n" %\
-        #    wget_command
-        pbs_footer = wget_command
+        ## ping server ten times with more and more delay
+        pbs_footer = "touch jobid-$JOB_ID.finished"
+        pbs_footer += "I=0; while [[ \"true\" != `%s`" % wget_command
+        pbs_footer += "&& $I -lt 10 ]];"
+        pbs_footer += "do echo yes; sleep $(($I*30)); I=$(($I+1)); done"
+        #pbs_footer = wget_command
         phaser_command = "phenix.phaser"
         spacegroups = [utils.sgNumNameTrans(number=sgnum)
                        for sgnum in self.get_params("space_group", value=True)]

@@ -341,6 +341,9 @@ def runningJobs(request, experiment_id):
     MRlist = [thistask
               for thistask in
               MRtask.getTaskList(experiment_id, status="running")]
+    if 'check' in request.POST and request.POST['check'] == "yesplease":
+        for task in MRlist:
+            task.check_status_on_hpc()
     jobids = [jobs.get_params("jobid") for jobs in MRlist]
     c = Context({
             'jobids': jobids,

@@ -256,6 +256,9 @@ class Task():
         send_mail(subject, message, 'mytardis@example.com',
                   [toAddress])
 
+    def check_status_on_hpc(self):
+        jobids = self.get_params("jobid")
+
     @staticmethod
     def extractJobID(inputstring):
         import re
