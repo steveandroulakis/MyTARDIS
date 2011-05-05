@@ -1,0 +1,7 @@
+<ul>
+{% for datafile in files %}
+  <li class="datafile">
+    {{ datafile.filename }}&nbsp;<a id="{{ datafile.id }}" class="addFile" href="#">[add file]</a>
+  </li>
+{% endfor %}
+</ul>

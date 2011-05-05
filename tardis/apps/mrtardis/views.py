@@ -142,10 +142,17 @@ def MRform(request, experiment_id):
         message = request.POST['message']
     else:
         message = ""
+    DSfileSelectChoices = [
+        (otherDataset.id, otherDataset.description)
+        for otherDataset in
+        Dataset.objects.filter(experiment__pk=experiment_id)
+        if otherDataset.id != dataset.id]
+    datasetSelectForm = selectDSForm(DSfileSelectChoices)
     c = Context({
             'message': message,
             'dataset': dataset,
             'experiment_id': experiment_id,
+            'datasetSelectForm': datasetSelectForm,
             })
     return render_to_response("mrtardis/MRform.html", c)
 
@@ -368,3 +375,29 @@ def displayResults(request, experiment_id):
             'ensemble_number': thisMR.get_param("ensemble_number", value=True),
             })
     return render_to_response("mrtardis/displayResults.html", c)
+
+
+@ajax_only
+@authz.experiment_access_required
+def loadDSFileList(request, experiment_id):
+    if 'dataset_id' not in request.POST:
+        return HttpResponseNotFound()
+    files = Dataset_File.objects.filter(dataset__pk=request.POST['dataset_id'])
+    return render_to_response("mrtardis/DSfilelist.html", Context({
+                'files': files,
+                }))
+
+
+@ajax_only
+@authz.dataset_access_required
+def addFile(request, dataset_id):
+    import shutil
+    from tardis.apps.mrtardis.utils import add_staged_file_to_dataset
+    from django.conf import settings
+    if 'file_id' not in request.POST:
+        return HttpResponseNotFound()
+    file_id = request.POST['file_id']
+    file = Dataset_File.objects.get(pk=file_id)
+    shutil.copy(file.get_absolute_filepath(), settings.STAGING_PATH)
+    add_staged_file_to_dataset(file.filename, dataset_id, file.mimetype)
+    return parseMTZfile(request, dataset_id=dataset_id)

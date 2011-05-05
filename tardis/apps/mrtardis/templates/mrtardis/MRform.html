@@ -48,6 +48,49 @@ $(document).ready(function(){
 	return false;
     });
 
+    function loadDSFileList(dataset_id) {
+	$.ajax({
+	    type: "POST",
+	    url: "{% url tardis.apps.mrtardis.views.loadDSFileList dataset.experiment.id %}",
+	    data: {dataset_id: dataset_id},
+	    success: function(data) {
+		$("#DSfileList").html(data);
+	    }
+	});
+    }
+
+    function addFile(file_id) {
+	$.ajax({
+	    type: "POST",
+	    url: "{% url tardis.apps.mrtardis.views.addFile dataset.id %}",
+	    data: {file_id: file_id},
+	    success: function(data) {
+		$("#DSfileList").html("");
+		$("a[href=#cancelFileSelect]").hide();
+		updateFileList(".mtz");
+	    }
+	});
+    }
+
+    $(".addFile").die().live('click', function(event) {
+	addFile($(this).attr('id'));
+	return false;
+    });
+
+    $("a[href=#cancelFileSelect]").hide();
+
+    $("a[href=#cancelFileSelect]").bind('click', function(event) {
+	$("#DSfileList").html("");
+	$(this).hide();
+	return false;
+    });
+
+    $("select#id_dataset").change(function() {
+	$("a[href=#cancelFileSelect]").show();
+	loadDSFileList($(this).val());
+	return false;
+    });
+
     function add_pdb_files() {
 	$.ajax({
 	    type: "GET",
@@ -146,7 +189,15 @@ $(document).ready(function(){
   <a class="upload_MRfiles_link">Upload your MTZ file</a>
   <div class="upload_files_container"></div>
 </div>
-
+<p>
+<div class="copyFromOtherDataset">
+Or choose one from one of your datasets:<br/>
+{{ datasetSelectForm }}
+<div id="DSfileList">
+</div>
+<a href="#cancelFileSelect">Cancel file selection</a>
+</div>
+</p>
 <h3>PDB file(s)</h3>
 <p><b>Already stored files</b>  <a href="#" id="refreshPDB">[refresh]</a>
 <div id="fileList" class="pdb">
