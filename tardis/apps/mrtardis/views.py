@@ -382,7 +382,8 @@ def displayResults(request, experiment_id):
 def loadDSFileList(request, experiment_id):
     if 'dataset_id' not in request.POST:
         return HttpResponseNotFound()
-    files = Dataset_File.objects.filter(dataset__pk=request.POST['dataset_id'])
+    files = Dataset_File.objects.filter(dataset__pk=request.POST['dataset_id'],
+                                        filename__iendswith=".mtz")
     return render_to_response("mrtardis/DSfilelist.html", Context({
                 'files': files,
                 }))
