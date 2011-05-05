@@ -16,6 +16,8 @@ core_urls = patterns(
     (r'^partners/$', 'partners'),
     (r'^stats/$', 'stats'),
     (r'^import_params/$', 'import_params'),
+    (r'^rif-cs/$',
+     'rif_cs'),
 )
 
 experiment_urls = patterns(
@@ -30,7 +32,7 @@ experiment_urls = patterns(
     (r'^view/(?P<experiment_id>\d+)/publish/$', 'publish_experiment'),
     (r'^create/$', 'create_experiment'),
     (r'^control_panel/(?P<experiment_id>\d+)/access_list/add/user/'
-     '(?P<username>[\w\-][\w\-\.]+(@[\w\-][\w\-\.]+[a-zA-Z]{1,4})*)$',
+     '(?P<username>[\w\-][\w\-\.]+(@[\w\-][\w\-\.]+[a-zA-Z]{1,4})*)/$',
      'add_experiment_access_user'),
     (r'^control_panel/(?P<experiment_id>\d+)/access_list/remove/user/'
      '(?P<username>[\w\.]+)/$', 'remove_experiment_access_user'),
@@ -39,7 +41,7 @@ experiment_urls = patterns(
     (r'^control_panel/(?P<experiment_id>\d+)/access_list/user/$',
      'retrieve_access_list_user'),
     (r'^control_panel/(?P<experiment_id>\d+)/access_list/add/group/'
-     '(?P<groupname>[\w\s\.]+)$', 'add_experiment_access_group'),
+     '(?P<groupname>[\w\s\.]+)/$', 'add_experiment_access_group'),
     (r'^control_panel/(?P<experiment_id>\d+)/access_list/remove/group/'
      '(?P<group_id>\d+)/$', 'remove_experiment_access_group'),
     (r'^control_panel/(?P<experiment_id>\d+)/access_list/change/group/'
@@ -70,6 +72,8 @@ ajax_urls = patterns(
     'tardis.tardis_portal.views',
     (r'^parameters/(?P<dataset_file_id>\d+)/$', 'retrieve_parameters'),
     (r'^dataset_metadata/(?P<dataset_id>\d+)/$', 'retrieve_dataset_metadata'),
+    (r'^experiment_metadata/(?P<experiment_id>\d+)/$',
+        'retrieve_experiment_metadata'),
     (r'^datafile_list/(?P<dataset_id>\d+)/$', 'retrieve_datafile_list'),
     (r'^user_list/$', 'retrieve_user_list'),
     (r'^group_list/$', 'retrieve_group_list'),
@@ -78,14 +82,29 @@ ajax_urls = patterns(
     (r'^experiment_description/(?P<experiment_id>\d+)/$',
      'experiment_description'),
     (r'^experiment_datasets/(?P<experiment_id>\d+)/$', 'experiment_datasets'),
+    (r'^edit_datafile_parameters/(?P<parameterset_id>\d+)/$',
+        'edit_datafile_par'),
+    (r'^edit_dataset_parameters/(?P<parameterset_id>\d+)/$',
+        'edit_dataset_par'),
+    (r'^edit_experiment_parameters/(?P<parameterset_id>\d+)/$',
+        'edit_experiment_par'),
+    (r'^add_datafile_parameters/(?P<datafile_id>\d+)/$',
+        'add_datafile_par'),
+    (r'^add_dataset_parameters/(?P<dataset_id>\d+)/$',
+        'add_dataset_par'),
+    (r'^add_experiment_parameters/(?P<experiment_id>\d+)/$',
+        'add_experiment_par'),
+    (r'^view/(?P<experiment_id>\d+)/publish/$',
+        'publish_experiment'),
     )
 
 download_urls = patterns(
     'tardis.tardis_portal.download',
     (r'^datafile/(?P<datafile_id>\d+)/$', 'download_datafile'),
-    #(r'^dataset/(?P<dataset_id>\d+)/$', 'download_dataset'),
-    (r'^experiment/(?P<experiment_id>\d+)/$', 'download_experiment'),
+    (r'^experiment/(?P<experiment_id>\d+)/(?P<comptype>[a-z]{3})/$',
+     'download_experiment'),
     (r'^datafiles/$', 'download_datafiles'),
+    (r'^datafile/ws/$', 'download_datafile_ws'),
     )
 
 group_urls = patterns(
@@ -101,8 +120,7 @@ display_urls = patterns(
     'tardis.tardis_portal.views',
     (r'^ExperimentImage/load/(?P<parameter_id>\d+)/$',
      'load_experiment_image'),
-    (r'^DatasetImage/load/(?P<parameter_id>\d+)/'
-     '(?P<parameter_name>\w+)/$',
+    (r'^DatasetImage/load/(?P<parameter_id>\d+)/$',
      'load_dataset_image'),
     (r'^DatafileImage/load/(?P<parameter_id>\d+)/$',
      'load_datafile_image'),

@@ -11,15 +11,53 @@ def render_response_index(request, *args, **kwargs):
     is_authenticated = request.user.is_authenticated()
     if is_authenticated:
         is_superuser = request.user.is_superuser
-        email = request.user.email
+        username = request.user.username
     else:
         is_superuser = False
-        email = ''
+        username = None
 
     kwargs['context_instance'] = RequestContext(request)
     kwargs['context_instance']['is_authenticated'] = is_authenticated
     kwargs['context_instance']['is_superuser'] = is_superuser
-    kwargs['context_instance']['username'] = email
+    kwargs['context_instance']['username'] = username
+
+    if request.mobile:
+        template_path = args[0]
+        split = template_path.partition('/')
+        args = (split[0] + '/mobile/' + split[2], ) + args[1:]
+
+    return render_to_response(*args, **kwargs)
+
+
+def render_response_search(request, *args, **kwargs):
+
+    from tardis.tardis_portal.views import getNewSearchDatafileSelectionForm
+
+    is_authenticated = request.user.is_authenticated()
+    if is_authenticated:
+        is_superuser = request.user.is_superuser
+        username = request.user.username
+    else:
+        is_superuser = False
+        username = None
+
+
+    links = {}
+    for app in settings.INSTALLED_APPS:
+        if app.startswith('tardis.apps.'):
+            view = '%s.views.search' % app
+            try:
+                links[app.split('.')[2]] = reverse(view)
+            except:
+                pass
+
+    kwargs['context_instance'] = RequestContext(request)
+    kwargs['context_instance']['is_authenticated'] = is_authenticated
+    kwargs['context_instance']['is_superuser'] = is_superuser
+    kwargs['context_instance']['username'] = username
+    kwargs['context_instance']['searchDatafileSelectionForm'] = \
+        getNewSearchDatafileSelectionForm(request.GET.get('type', None))
+    kwargs['context_instance']['links'] = links
 
     if request.mobile:
         template_path = args[0]

@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-
 #
-# Copyright (c) 2010, Monash e-Research Centre
+# Copyright (c) 2010-2011, Monash e-Research Centre
 #   (Monash University, Australia)
-# Copyright (c) 2010, VeRSI Consortium
+# Copyright (c) 2010-2011, VeRSI Consortium
 #   (Victorian eResearch Strategic Initiative, Australia)
 # All rights reserved.
 # Redistribution and use in source and binary forms, with or without
@@ -29,61 +28,3 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-
-"""
-logger.py
-
-.. moduleauthor::  Ulrich Felzmann <ulrich.felzmann@versi.edu.au>
-
-"""
-
-import logging.handlers
-
-from django.conf import settings
-
-
-def init_logging():
-    """
-    logging facility for tardis
-    sends logging output to a disk file
-    supports rotation of disk log files
-    fallback on console if disk log file cannot be openend
-
-    http://docs.python.org/library/logging.html
-
-    >>> from tardis.tardis_portal.logger import logger
-    >>> logger.info('Hello world.')
-
-    """
-
-    logger = logging.getLogger(__name__)
-    try:
-        logger.setLevel(settings.LOG_LEVEL)
-    except AttributeError:
-        logger.setLevel(logging.DEBUG)
-
-    hd = None
-    try:
-        hd = \
-            logging.handlers.RotatingFileHandler(settings.LOG_FILENAME,
-                maxBytes=1000000, backupCount=5)
-    except:
-        hd = logging.StreamHandler()
-
-    fm = None
-    try:
-        fm = logging.Formatter(settings.LOG_FORMAT)
-    except AttributeError:
-        fm = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-
-    hd.setFormatter(fm)
-    logger.addHandler(hd)
-
-    logging.getLogger('suds').setLevel(logging.INFO)
-
-    return logger
-
-
-logger = None
-if not logger:
-    logger = init_logging()

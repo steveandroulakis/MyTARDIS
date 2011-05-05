@@ -1,110 +1,128 @@
-import logging
 from os import path
 
+TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 
 DEBUG = True
-TEMPLATE_DEBUG = DEBUG
 
-ADMINS = (('bob', 'bob@bobmail.com'), )
-
-MANAGERS = ADMINS
-
-# 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
-DATABASE_ENGINE = 'sqlite3'
-DATABASE_NAME = ':memory:'
-DATABASE_USER = 'x'  # Not used with sqlite3.
-DATABASE_PASSWORD = ''  # Not used with sqlite3.
-DATABASE_HOST = ''  # Set to empty string for localhost. Not used with sqlite3.
-DATABASE_PORT = ''  # Set to empty string for default. Not used with sqlite3.
-
-TIME_ZONE = 'Australia/Melbourne'
-LANGUAGE_CODE = 'en-us'
-SITE_ID = 1
-USE_I18N = True
-ADMIN_MEDIA_PREFIX = '/media/'
-
-MIDDLEWARE_CLASSES = ('django.middleware.common.CommonMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'tardis.tardis_portal.minidetector.Middleware',
-    'tardis.tardis_portal.auth.AuthorizationMiddleware',
-    'django.middleware.transaction.TransactionMiddleware')
+DATABASES = {
+    'default': {
+        # 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
+        'ENGINE': 'django.db.backends.sqlite3',
+        # Name of the database to use. For SQLite, it's the full path.
+        'NAME': ':memory:',
+        'USER': '',
+        'PASSWORD': '',
+        'HOST': '',
+        'PORT': '',
+    }
+}
 
 ROOT_URLCONF = 'tardis.urls'
 
-TEMPLATE_CONTEXT_PROCESSORS = ('django.core.context_processors.request',
-                               'django.core.context_processors.auth',
-                               'django.core.context_processors.debug',
-                               'django.core.context_processors.i18n')
+FILE_STORE_PATH = path.abspath(path.join(path.dirname(__file__),
+                                         '../var/store/'))
+STAGING_PATH = path.abspath(path.join(path.dirname(__file__),
+                                      "../var/staging/"))
 
+STAGING_PROTOCOL = 'ldap'
+
+def GET_FULL_STAGING_PATH(username):
+    # check if the user is authenticated using the deployment's staging protocol
+    try:
+        from tardis.tardis_portal.models import UserAuthentication
+        userAuth = UserAuthentication.objects.get(
+            userProfile__user__username=username,
+            authenticationMethod=STAGING_PROTOCOL)
+    except UserAuthentication.DoesNotExist:
+        return None
+
+    return STAGING_PATH + '/' + username
+
+SITE_ID = '1'
 
 TEMPLATE_DIRS = ['.']
 
-# LDAP configuration
-LDAP_ENABLE = False
-
-DISABLE_TRANSACTION_MANAGEMENT = False
-
 STATIC_DOC_ROOT = path.join(path.dirname(__file__),
-                               'tardis_portal/site_media').replace('\\', '/')
-
-ADMIN_MEDIA_STATIC_DOC_ROOT = ''
-
-FILE_STORE_PATH = path.abspath(path.join(path.dirname(__file__),
-                                               '../var/store/')).replace('\\', '/')
-STAGING_PATH = path.abspath(path.join(path.dirname(__file__),
-                                            "../var/staging/")).replace('\\', '/')
-
-HANDLEURL = ''
+                            'tardis_portal/site_media').replace('\\', '/')
 
 MEDIA_ROOT = STATIC_DOC_ROOT
 
 MEDIA_URL = '/site_media/'
 
-#set to empty tuple () for no apps
-#TARDIS_APPS = ('mrtardis', )
-TARDIS_APPS = ()
-TARDIS_APP_ROOT = 'tardis.apps'
+ADMIN_MEDIA_STATIC_DOC_ROOT = path.join(path.dirname(__file__),
+                                        '../parts/django/django/contrib/admin/media/').replace('\\', '/')
 
-if TARDIS_APPS:
-    apps = tuple(["%s.%s" % (TARDIS_APP_ROOT, app) for app in TARDIS_APPS])
-else:
-    apps = ()
+
+AUTH_PROVIDERS = (('localdb', 'Local DB',
+                  'tardis.tardis_portal.auth.localdb_auth.DjangoAuthBackend'),
+                  ('vbl', 'VBL',
+                   'tardis.tardis_portal.tests.mock_vbl_auth.MockBackend'),
+                  ('ldap', 'LDAP',
+                   'tardis.tardis_portal.auth.ldap_auth.ldap_auth'),
+)
+USER_PROVIDERS = ('tardis.tardis_portal.auth.localdb_auth.DjangoUserProvider',)
+
+GROUP_PROVIDERS = ('tardis.tardis_portal.auth.localdb_auth.DjangoGroupProvider',
+                   'tardis.tardis_portal.auth.ip_auth.IPGroupProvider'
+)
+
+DOWNLOAD_PROVIDERS = (
+    ('vbl', 'tardis.tardis_portal.tests.mock_vbl_download'),
+)
+
+MIDDLEWARE_CLASSES = (
+    'django.middleware.common.CommonMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'tardis.tardis_portal.auth.AuthorizationMiddleware',
+    'tardis.tardis_portal.logging_middleware.LoggingMiddleware',
+    'tardis.tardis_portal.minidetector.Middleware',
+    'django.middleware.transaction.TransactionMiddleware'
+)
 
 INSTALLED_APPS = (
-    'django_extensions',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.sites',
-    'django.contrib.admin',
-    'django.contrib.admindocs',
-    'tardis.tardis_portal',
-    'registration',
-    'tardis.tardis_portal.templatetags',
-    'tardis.apps.equipment',
-    'django_nose',
-    'south'
-    ) + apps
+        'django.contrib.auth',
+        'django.contrib.contenttypes',
+        'django.contrib.sessions',
+        'django.contrib.sites',
+        'django.contrib.admin',
+        'django.contrib.admindocs',
+        'django_extensions',
+        'tardis.tardis_portal',
+        'tardis.tardis_portal.templatetags',
+        'tardis.apps.equipment',
+        'registration',
+        'django_nose',
+        'south'
+)
 
-USER_PROVIDERS = ('tardis.tardis_portal.auth.localdb_auth.DjangoUserProvider',)
-GROUP_PROVIDERS = ('tardis.tardis_portal.auth.localdb_auth.DjangoGroupProvider',
-                   'tardis.tardis_portal.auth.ip_auth.IPGroupProvider',)
+# LDAP configuration
+LDAP_USE_TLS = False
+LDAP_URL = "ldap://localhost:38911/"
 
-AUTH_PROVIDERS = (
-    ('localdb', 'Local DB', 'tardis.tardis_portal.auth.localdb_auth.DjangoAuthBackend'),
-    ('vbl', 'VBL', 'tardis.tardis_portal.tests.mock_vbl_auth.MockBackend'),
-    )
+LDAP_USER_LOGIN_ATTR = "uid"
+LDAP_USER_ATTR_MAP = {"givenName": "display", "mail": "email"}
+LDAP_GROUP_ID_ATTR = "cn"
+LDAP_GROUP_ATTR_MAP = {"description": "display"}
 
+#LDAP_ADMIN_USER = ''
+#LDAP_ADMIN_PASSWORD = ''
+LDAP_BASE = 'dc=example, dc=com'
+LDAP_USER_BASE = 'ou=People, ' + LDAP_BASE
+LDAP_GROUP_BASE = 'ou=Group, ' + LDAP_BASE
 
-VBLSTORAGEGATEWAY = \
-'https://vbl.synchrotron.org.au/StorageGateway/VBLStorageGateway.wsdl'
+SYSTEM_LOG_LEVEL = 'INFO'
+MODULE_LOG_LEVEL = 'INFO'
 
-TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
+SYSTEM_LOG_FILENAME = '/var/log/request.log'
+MODULE_LOG_FILENAME = '/var/log/tardis.log'
 
-LOG_FILENAME = None
+SYSTEM_LOG_MAXBYTES = 0
+MODULE_LOG_MAXBYTES = 0
 
-LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
+UPLOADIFY_PATH = '%s%s' % (MEDIA_URL, 'js/uploadify/')
+UPLOADIFY_UPLOAD_PATH = '%s%s' % (MEDIA_URL, 'uploads/')
 
-# logging levels are: DEBUG, INFO, WARN, ERROR, CRITICAL
-LOG_LEVEL = logging.ERROR
+DEFAULT_INSTITUTION = "Monash University"
+
+IMMUTABLE_METS_DATASETS = True

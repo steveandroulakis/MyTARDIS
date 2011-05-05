@@ -10,7 +10,6 @@ from django.contrib.auth.models import User, AnonymousUser
 auth_key = 'vbl'
 
 
-
 class MockBackend():
     """
     Authenticate against the VBL SOAP Webservice. It is assumed that the

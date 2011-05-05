@@ -137,7 +137,8 @@ class Experiment(models.Model):
                           null=True, blank=True)
     approved = models.BooleanField()
     title = models.CharField(max_length=400)
-    institution_name = models.CharField(max_length=400)
+    institution_name = models.CharField(max_length=400,
+            default=settings.DEFAULT_INSTITUTION)
     description = models.TextField(blank=True)
     start_time = models.DateTimeField(null=True, blank=True)
     end_time = models.DateTimeField(null=True, blank=True)
@@ -197,9 +198,10 @@ class Experiment(models.Model):
         return ('tardis.tardis_portal.views.edit_experiment', (),
                 {'experiment_id': self.id})
 
-    def get_download_urls(self):
+    def get_download_urls(self, comptype="zip"):
         urls = {}
-        kwargs = {'experiment_id': self.id}
+        kwargs = {'experiment_id': self.id,
+                  'comptype': comptype}
         distinct = Dataset_File.objects.filter(dataset__experiment=self.id).values('protocol').distinct()
         for key_value in distinct:
             protocol = key_value['protocol']
@@ -217,6 +219,30 @@ class Experiment(models.Model):
                     pass
 
         return urls
+
+    def profile(self):
+        """Return the rif-cs profile template location
+            as determined by the profile ExperimentParameter
+
+        """
+
+        profile_template_location = "rif_cs_profile/profiles/"
+
+        try:
+            from tardis.tardis_portal.publish.rif_cs_profile.\
+            rif_cs_PublishProvider\
+            import rif_cs_PublishProvider
+
+            rif_cs_pp = rif_cs_PublishProvider(self.id)
+
+            profile = rif_cs_pp.get_profile()
+            if not profile:
+                return profile_template_location + "default.xml"
+
+            return profile_template_location + profile
+
+        except:
+            return profile_template_location + "default.xml"
 
 
 class ExperimentACL(models.Model):
@@ -295,6 +321,7 @@ class Dataset(models.Model):
 
     experiment = models.ForeignKey(Experiment)
     description = models.TextField(blank=True)
+    immutable = models.BooleanField(default=False)
 
     def getParameterSets(self, schemaType=None):
         """Return the dataset parametersets associated with this
@@ -336,6 +363,9 @@ class Dataset(models.Model):
 
     def __unicode__(self):
         return self.description
+
+    def get_absolute_filepath(self):
+        return path.join(self.experiment.get_absolute_filepath(), str(self.id))
 
 
 class Dataset_File(models.Model):
@@ -415,8 +445,17 @@ class Dataset_File(models.Model):
         else:
             return ''
 
-    def get_absolute_filepath(self):
+    def get_relative_filepath(self):
+        if self.protocol == '' or self.protocol == 'tardis':
+            from os.path import abspath, join
+            return abspath(join(self.url.partition('://')[2]))
+        elif self.protocol == 'staging':
+            return self.url
+        # file should refer to an absolute location
+        elif self.protocol == 'file':
+            return self.url.partition('://')[2]
 
+    def get_absolute_filepath(self):
         # check for empty protocol field (historical reason) or
         # 'tardis' which indicates a location within the tardis file
         # store
@@ -430,6 +469,7 @@ class Dataset_File(models.Model):
             from os.path import abspath, join
             return abspath(join(FILE_STORE_PATH,
                                 str(self.dataset.experiment.id),
+                                str(self.dataset.id),
                                 self.url.partition('://')[2]))
         elif self.protocol == 'staging':
             return self.url
@@ -507,10 +547,12 @@ class Schema(models.Model):
     EXPERIMENT = 1
     DATASET = 2
     DATAFILE = 3
+    NONE = 4
     _SCHEMA_TYPES = (
         (EXPERIMENT, 'Experiment schema'),
         (DATASET, 'Dataset schema'),
         (DATAFILE, 'Datafile schema'),
+        (NONE, 'None')
     )
 
     namespace = models.URLField(verify_exists=False, max_length=400)
@@ -630,6 +672,7 @@ class ParameterName(models.Model):
     full_name = models.CharField(max_length=60)
     units = models.CharField(max_length=60, blank=True)
     data_type = models.IntegerField(choices=__TYPE_CHOICES, default=STRING)
+    immutable = models.BooleanField(default=False)
     comparison_type = models.IntegerField(
         choices=__COMPARISON_CHOICES, default=EXACT_VALUE_COMPARISON)
     is_searchable = models.BooleanField(default=False)
@@ -683,7 +726,7 @@ class ParameterName(models.Model):
 def _getParameter(parameter):
 
     if parameter.name.isNumeric():
-        value = parameter.numerical_value
+        value = str(parameter.numerical_value)
         units = parameter.name.units
         if units:
             value += ' %s' % units
@@ -722,6 +765,8 @@ def _getParameter(parameter):
         return mark_safe(value)
 
     elif parameter.name.isLink():
+        if parameter.string_value is None:
+            return ''
         units = parameter.name.units
         if units:
             url = units + parameter.string_value
@@ -766,6 +811,9 @@ class DatafileParameter(models.Model):
     def get(self):
         return _getParameter(self)
 
+    def getExpId(self):
+        return self.parameterset.dataset_file.dataset.experiment.id
+
     def __unicode__(self):
         return 'Datafile Param: %s=%s' % (self.name.name, self.get())
 
@@ -784,6 +832,9 @@ class DatasetParameter(models.Model):
     def get(self):
         return _getParameter(self)
 
+    def getExpId(self):
+        return self.parameterset.dataset.experiment.id
+
     def __unicode__(self):
         return 'Dataset Param: %s=%s' % (self.name.name, self.get())
 
@@ -801,8 +852,48 @@ class ExperimentParameter(models.Model):
     def get(self):
         return _getParameter(self)
 
+    def getExpId(self):
+        return self.parameterset.experiment.id
+
     def __unicode__(self):
         return 'Experiment Param: %s=%s' % (self.name.name, self.get())
 
     class Meta:
         ordering = ['id']
+
+
+def pre_save_parameter(sender, **kwargs):
+
+    # the object can be accessed via kwargs 'instance' key.
+    parameter = kwargs['instance']
+
+    if parameter.name.units.startswith('image') \
+            and parameter.name.data_type == ParameterName.FILENAME:
+        if parameter.string_value:
+            from base64 import b64decode
+            from os import mkdir
+            from os.path import exists, join
+            from uuid import uuid4 as uuid
+
+            exp_id = parameter.getExpId()
+
+            dirname = join(settings.FILE_STORE_PATH, str(exp_id))
+            filename = str(uuid())
+            filepath = join(dirname, filename)
+
+            b64 = parameter.string_value
+            modulo = len(b64) % 4
+            if modulo:
+                b64 += (4 - modulo) * '='
+
+            if not exists(dirname):
+                mkdir(dirname)
+            f = open(filepath, 'w')
+            f.write(b64decode(b64))
+            f.close()
+            parameter.string_value = filename
+
+
+pre_save.connect(pre_save_parameter, sender=ExperimentParameter)
+pre_save.connect(pre_save_parameter, sender=DatasetParameter)
+pre_save.connect(pre_save_parameter, sender=DatafileParameter)

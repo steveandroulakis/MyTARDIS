@@ -49,13 +49,18 @@ recommends.
 
 """
 
+import logging
+
 from xml.sax import SAXParseException, ContentHandler
-from tardis.tardis_portal import metsstruct
-from tardis.tardis_portal import models
-from tardis.tardis_portal.logger import logger
-from django.utils.safestring import SafeUnicode
 from xml.sax.handler import feature_namespaces
 from xml.sax import make_parser
+
+from tardis.tardis_portal import metsstruct
+from tardis.tardis_portal import models
+
+from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 class MetsDataHolder():
@@ -277,6 +282,8 @@ class MetsMetadataInfoHandler(ContentHandler):
         self.grabRoleTerm = False
         self.mightBeAuthor = None
         self.grabExperimentUrl = False
+        self.grabStartTime = False
+        self.grabEndTime = False
 
         self.processExperimentStruct = False
         self.processDatasetStruct = False
@@ -345,6 +352,12 @@ class MetsMetadataInfoHandler(ContentHandler):
 
         elif elName == 'title' and self.inDmdSec:
             self.grabTitle = True
+
+        elif elName == 'startTime' and self.processExperimentStruct:
+            self.grabStartTime = True
+
+        elif elName == 'endTime' and self.processExperimentStruct:
+            self.grabEndTime = True
 
         elif elName == 'url' and self.processExperimentStruct:
             self.grabExperimentUrl = True
@@ -431,6 +444,8 @@ class MetsMetadataInfoHandler(ContentHandler):
                 self.modelExperiment.institution_name = \
                                             self.metsObject.institution
                 self.modelExperiment.description = self.metsObject.description
+                self.modelExperiment.start_time = self.metsObject.start_time
+                self.modelExperiment.end_time = self.metsObject.end_time
                 self.modelExperiment.created_by = self.createdBy
 
                 self.modelExperiment.save()
@@ -449,7 +464,8 @@ class MetsMetadataInfoHandler(ContentHandler):
                 # let's save the dataset in the DB
                 self.modelDataset = models.Dataset(
                     experiment=self.modelExperiment,
-                    description=self.metsObject.title)
+                    description=self.metsObject.title,
+                    immutable=settings.IMMUTABLE_METS_DATASETS)
                 self.modelDataset.save()
 
                 # let's also save the modelDataset in a dictionary so that we
@@ -464,6 +480,12 @@ class MetsMetadataInfoHandler(ContentHandler):
 
         elif elName == 'title' and self.inDmdSec:
             self.grabTitle = False
+
+        elif elName == 'startTime' and self.processExperimentStruct:
+            self.grabStartTime = False
+
+        elif elName == 'endTime' and self.processExperimentStruct:
+            self.grabEndTime = False
 
         elif elName == 'url' and self.processExperimentStruct:
             self.grabExperimentUrl = False
@@ -698,6 +720,10 @@ class MetsMetadataInfoHandler(ContentHandler):
                 self.metsObject.description += chars
             elif self.grabMightBeAuthor:
                 self.mightBeAuthor = chars
+            elif self.grabStartTime:
+                self.metsObject.start_time = chars
+            elif self.grabEndTime:
+                self.metsObject.end_time = chars
 
             # if it's really an author, add the mightBeAuthor into the
             # experiment's author list

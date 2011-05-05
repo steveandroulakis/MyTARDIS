@@ -1,13 +1,14 @@
 '''
 Created on 19/01/2011
 
-@author: gerson
+.. moduleauthor:: Gerson Galang <gerson.galang@versi.edu.au>
 '''
 from django.test import TestCase
 from django.test.client import Client
 from django.contrib.auth.models import User
-from tardis.tardis_portal.models import UserAuthentication
 from django.utils import simplejson
+
+from tardis.tardis_portal.models import UserAuthentication
 
 
 class AuthenticationTestCase(TestCase):
@@ -17,7 +18,7 @@ class AuthenticationTestCase(TestCase):
         self.loginUrl = "/login/"
         self.manageAuthMethodsUrl = "/accounts/manage_auth_methods/"
 
-        self.user = User.objects.create_user('localdb_test', '', 'test')
+        self.user = User.objects.create_user('test', '', 'test')
 
     def testSimpleAuthenticate(self):
         response = self.client.post(self.loginUrl, {'username': 'test',
@@ -92,7 +93,7 @@ class AuthenticationTestCase(TestCase):
             'password': 'test', 'authMethod': 'localdb'})
 
         response = self.client.get(self.manageAuthMethodsUrl)
-        self.assertEqual(len(response.context['userAuthMethodList']), 1)
+        self.assertEqual(len(response.context['userAuthMethodList']), 1, response)
         self.assertTrue(response.context['isDjangoAccount'] == True)
         self.assertTrue(len(response.context['supportedAuthMethods']), 1)
         self.assertTrue(len(response.context['allAuthMethods']), 1)
@@ -105,3 +106,15 @@ class AuthenticationTestCase(TestCase):
 
         self.assertTrue(simplejson.loads(response.content)['status'])
         self.client.logout()
+
+    def test_djangoauth(self):
+        from django.test.client import RequestFactory
+        factory = RequestFactory()
+
+        from tardis.tardis_portal.auth.localdb_auth import DjangoAuthBackend
+        dj_auth = DjangoAuthBackend()
+        request = factory.post('/login', {'username': 'test',
+                                          'password': 'test',
+                                          'authMethod': 'localdb'})
+        user = dj_auth.authenticate(request)
+        self.assertTrue(isinstance(user, User))
