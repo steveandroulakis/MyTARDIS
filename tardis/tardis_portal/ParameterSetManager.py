@@ -10,7 +10,7 @@ from tardis.tardis_portal.models import ExperimentParameter
 from tardis.tardis_portal.models import Schema
 
 
-class ParameterSetManager():
+class ParameterSetManager(object):
 
     parameterset = None
     parameters = None       # queryset of parameters
@@ -61,7 +61,7 @@ class ParameterSetManager():
             self.namespace = schema
 
             if type(parentObject).__name__ == "Dataset_File":
-                self.parameterset = DatafileParameterSet(\
+                self.parameterset = DatafileParameterSet(
                     schema=self.get_schema(), dataset_file=parentObject)
 
                 self.parameterset.save()
@@ -72,7 +72,7 @@ class ParameterSetManager():
                 self.blank_param = DatafileParameter
 
             elif type(parentObject).__name__ == "Dataset":
-                self.parameterset = DatasetParameterSet(\
+                self.parameterset = DatasetParameterSet(
                     schema=self.get_schema(), dataset=parentObject)
 
                 self.parameterset.save()
@@ -83,7 +83,7 @@ class ParameterSetManager():
                 self.blank_param = DatasetParameter
 
             elif type(parentObject).__name__ == "Experiment":
-                self.parameterset = ExperimentParameterSet(\
+                self.parameterset = ExperimentParameterSet(
                     schema=self.get_schema(), experiment=parentObject)
 
                 self.parameterset.save()
@@ -94,7 +94,7 @@ class ParameterSetManager():
                 self.blank_param = ExperimentParameter
 
             else:
-                raise TypeError("Invalid parent object." + \
+                raise TypeError("Invalid parent object." +
                     "Must be an experiment/dataset/datafile")
 
         else:
