@@ -4,6 +4,7 @@ from django.shortcuts import render_to_response
 from django.template import RequestContext, Context
 from django.http import HttpResponseForbidden, HttpResponseNotFound, \
     HttpResponseServerError
+from tardis.tardis_portal.staging import get_full_staging_path
 
 
 def render_response_index(request, *args, **kwargs):
@@ -20,6 +21,14 @@ def render_response_index(request, *args, **kwargs):
     kwargs['context_instance']['is_authenticated'] = is_authenticated
     kwargs['context_instance']['is_superuser'] = is_superuser
     kwargs['context_instance']['username'] = username
+
+    staging = get_full_staging_path(
+                                username)
+    if staging:
+        kwargs['context_instance']['has_staging_access'] = True
+    else:
+        kwargs['context_instance']['has_staging_access'] = False
+
 
     if request.mobile:
         template_path = args[0]
@@ -59,42 +68,12 @@ def render_response_search(request, *args, **kwargs):
         getNewSearchDatafileSelectionForm(request.GET.get('type', None))
     kwargs['context_instance']['links'] = links
 
-    if request.mobile:
-        template_path = args[0]
-        split = template_path.partition('/')
-        args = (split[0] + '/mobile/' + split[2], ) + args[1:]
-
-    return render_to_response(*args, **kwargs)
-
-
-def render_response_search(request, *args, **kwargs):
-
-    from tardis.tardis_portal.views import getNewSearchDatafileSelectionForm
-
-    is_authenticated = request.user.is_authenticated()
-    if is_authenticated:
-        is_superuser = request.user.is_superuser
-        email = request.user.email
+    staging = get_full_staging_path(
+                                username)
+    if staging:
+        kwargs['context_instance']['has_staging_access'] = True
     else:
-        is_superuser = False
-        email = ''
-
-    links = {}
-    for app in settings.INSTALLED_APPS:
-        if app.startswith('tardis.apps.'):
-            view = '%s.views.search' % app
-            try:
-                links[app.split('.')[2]] = reverse(view)
-            except:
-                pass
-
-    kwargs['context_instance'] = RequestContext(request)
-    kwargs['context_instance']['is_authenticated'] = is_authenticated
-    kwargs['context_instance']['is_superuser'] = is_superuser
-    kwargs['context_instance']['username'] = email
-    kwargs['context_instance']['searchDatafileSelectionForm'] = \
-        getNewSearchDatafileSelectionForm()
-    kwargs['context_instance']['links'] = links
+        kwargs['context_instance']['has_staging_access'] = False
 
     if request.mobile:
         template_path = args[0]

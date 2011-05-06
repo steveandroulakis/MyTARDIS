@@ -41,6 +41,7 @@ from django.conf import settings
 from django.utils.importlib import import_module
 from django.core.exceptions import ImproperlyConfigured
 from django.contrib import auth
+from tardis.tardis_portal.staging import get_full_staging_path
 
 
 class AuthService():
@@ -283,7 +284,7 @@ class AuthService():
 
         if settings.STAGING_PROTOCOL == plugin:
             # to be put in its own function
-            staging_path = settings.GET_FULL_STAGING_PATH(username)
+            staging_path = get_full_staging_path(username)
             import os
             if not os.path.exists(staging_path):
                 os.makedirs(staging_path)

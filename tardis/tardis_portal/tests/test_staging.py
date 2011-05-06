@@ -90,7 +90,7 @@ class StagingFiles(TestCase):
                                      1234)
         self.assertEqual(df.size, 1234)
         self.assertEqual(df.filename, 'file')
-        self.assertEqual(df.url, "file://%s/file" % dataset.id)
+        self.assertEqual(df.url, "tardis://file")
 
 
 class TraverseTestCase(TestCase):
@@ -103,7 +103,7 @@ class TraverseTestCase(TestCase):
 
     def setUp(self):
         from django.conf import settings
-        staging = settings.GET_FULL_STAGING_PATH(self.username)
+        staging = settings.GET_FULL_STAGING_PATH_TEST
         import os
         from os import path
         for dir in self.dirs:
@@ -114,20 +114,20 @@ class TraverseTestCase(TestCase):
 
     def tearDown(self):
         from django.conf import settings
-        staging = settings.GET_FULL_STAGING_PATH(self.username)
+        staging = settings.GET_FULL_STAGING_PATH_TEST
         import os
         from os import path
         for file in self.files:
             os.remove(path.join(staging, *file))
         self.dirs.reverse()
         for dir in self.dirs:
-            os.rmdir(path.join(staging, dir))
-        os.rmdir(staging)
+            import shutil
+            shutil.rmtree(path.join(staging, dir))
 
     def test_traversal(self):
         from tardis.tardis_portal.staging import staging_traverse
         from django.conf import settings
-        result = staging_traverse(settings.GET_FULL_STAGING_PATH(self.username))
+        result = staging_traverse(settings.GET_FULL_STAGING_PATH_TEST)
         self.assertTrue('dir1' in result)
         self.assertTrue('dir1/file1' in result)
         self.assertTrue('dir2' in result)
@@ -147,7 +147,7 @@ class TestPathResolution(TestCase):
         from django.conf import settings
         from os import path
         for p in self.paths:
-            ap = path.join(settings.GET_FULL_STAGING_PATH(self.username),
+            ap = path.join(settings.GET_FULL_STAGING_PATH_TEST,
                             p)
             sp = staging.calculate_relative_path('staging',
                                                ap)
@@ -181,8 +181,11 @@ class TestStagingFiles(TestCase):
         email = ''
         self.user = User.objects.create_user(user, email, pwd)
 
-        os.makedirs(settings.GET_FULL_STAGING_PATH(self.user.username))
-        self.temp = mkdtemp(dir=settings.GET_FULL_STAGING_PATH(self.user.username))
+        try:
+            os.makedirs(settings.GET_FULL_STAGING_PATH_TEST)
+        except OSError:
+            pass
+        self.temp = mkdtemp(dir=settings.GET_FULL_STAGING_PATH_TEST)
 
         self.file = mktemp(dir=self.temp)
         f = open(self.file, "w+b")

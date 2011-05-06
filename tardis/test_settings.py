@@ -24,19 +24,10 @@ FILE_STORE_PATH = path.abspath(path.join(path.dirname(__file__),
 STAGING_PATH = path.abspath(path.join(path.dirname(__file__),
                                       "../var/staging/"))
 
-STAGING_PROTOCOL = 'ldap'
+STAGING_PROTOCOL = 'localdb'
+STAGING_MOUNT_PREFIX = 'smb://localhost/staging/'
 
-def GET_FULL_STAGING_PATH(username):
-    # check if the user is authenticated using the deployment's staging protocol
-    try:
-        from tardis.tardis_portal.models import UserAuthentication
-        userAuth = UserAuthentication.objects.get(
-            userProfile__user__username=username,
-            authenticationMethod=STAGING_PROTOCOL)
-    except UserAuthentication.DoesNotExist:
-        return None
-
-    return STAGING_PATH + '/' + username
+GET_FULL_STAGING_PATH_TEST = path.join(STAGING_PATH, "test_user")
 
 SITE_ID = '1'
 
@@ -114,8 +105,8 @@ LDAP_GROUP_BASE = 'ou=Group, ' + LDAP_BASE
 SYSTEM_LOG_LEVEL = 'INFO'
 MODULE_LOG_LEVEL = 'INFO'
 
-SYSTEM_LOG_FILENAME = '/var/log/request.log'
-MODULE_LOG_FILENAME = '/var/log/tardis.log'
+SYSTEM_LOG_FILENAME = 'request.log'
+MODULE_LOG_FILENAME = 'tardis.log'
 
 SYSTEM_LOG_MAXBYTES = 0
 MODULE_LOG_MAXBYTES = 0
