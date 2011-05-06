@@ -43,14 +43,11 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 from django.core.urlresolvers import reverse
 
-#from tardis.tardis_portal.models import DatasetParameter
-#from tardis.tardis_portal.models import Schema
-#from tardis.tardis_portal.models import ParameterName
 from tardis.tardis_portal.models import Dataset_File
 
 import tardis.apps.mrtardis.utils as utils
 from tardis.apps.mrtardis.models import HPCUser
-from tardis.apps.mrtardis.task import Task
+from tardis.tardis_portal.task import Task
 
 
 class MRtask(Task):
