@@ -213,18 +213,16 @@ def add_staged_file_to_dataset(rel_filepath, dataset_id,
     newDatafile = Dataset_File()
     newDatafile.dataset = dataset
     newDatafile.size = os.path.getsize(originfilepath)
-    newDatafile.protocol = "file"
+    newDatafile.protocol = "tardis"
     newDatafile.mimetype = mimetype
     file_dir = "/" + str(dataset.experiment.id) + "/" + str(dataset.id) + "/"
     file_path = file_dir + rel_filepath
     prelim_full_file_path = settings.FILE_STORE_PATH + file_path
     full_file_path = duplicate_file_check_rename(prelim_full_file_path)
-    if prelim_full_file_path == full_file_path:
-        newDatafile.filename = rel_filepath
-    else:
-        newDatafile.filename = full_file_path[len(settings.FILE_STORE_PATH)
-                                              + len(file_dir):]
-    newDatafile.url = "file://" + full_file_path
+    newDatafile.filename = os.path.basename(full_file_path)
+    newDatafile.url = "%s://%s" % (newDatafile.protocol,
+                                   full_file_path[
+            len(settings.FILE_STORE_PATH) + len(file_dir):])
     if not os.path.exists(os.path.dirname(full_file_path)):
         os.makedirs(os.path.dirname(full_file_path))
     shutil.move(originfilepath, full_file_path)

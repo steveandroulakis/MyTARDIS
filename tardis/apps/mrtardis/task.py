@@ -3,17 +3,15 @@ import uuid
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 
+from tardis.tardis_portal.ParameterSetManager import ParameterSetManager
 from tardis.tardis_portal.models import DatasetParameterSet
-from tardis.tardis_portal.models import ParameterName
-from tardis.tardis_portal.models import DatasetParameter
 from tardis.tardis_portal.models import Dataset
 from tardis.tardis_portal.models import Dataset_File
-from tardis.tardis_portal.models import Schema
 from tardis.apps.mrtardis.hpc import HPC
 from tardis.apps.mrtardis.utils import add_staged_file_to_dataset
 
 
-class Task():
+class Task(ParameterSetManager):
     schema_name = "http://localhost/task/generic"
     dataset = None
     DPS = None
@@ -41,119 +39,8 @@ class Task():
             self.dataset.experiment_id = experiment_id
             self.dataset.description = description
             self.dataset.save()
-        try:
-            self.DPS = DatasetParameterSet.objects.get(
-                dataset=self.dataset,
-                schema__namespace=self.schema_name)
-        except ObjectDoesNotExist:
-            self.DPS = DatasetParameterSet()
-            self.DPS.dataset = self.dataset
-            self.DPS.schema = self.get_schema()
-            self.DPS.save()
-        self.parameters = DatasetParameter.objects.filter(
-            parameterset=self.DPS)
-
-    def get_schema(self):
-        try:
-            schema = Schema.objects.get(
-                namespace=self.schema_name)
-        except ObjectDoesNotExist:
-            schema = Schema()
-            schema.namespace = self.schema_name
-            schema.save()
-        return schema
-
-    def get_param(self, parname, value=False):
-        par = self.parameters.get(name__name=parname)
-        if value:
-            if par.name.isNumeric():
-                return par.numerical_value
-            else:
-                return par.string_value
-        return par
-
-    def get_params(self, parname, value=False):
-        pars = self.parameters.filter(name__name=parname)
-        if value:
-            if len(pars) > 0 and pars[0].name.isNumeric():
-                return [par.numerical_value
-                        for par in pars]
-            else:
-                return [par.string_value
-                        for par in pars]
-        return pars
-
-    def set_param(self, parname, value, fullparname=None):
-        try:
-            param = self.get_param(parname)
-        except ObjectDoesNotExist:
-            param = DatasetParameter()
-            param.parameterset = self.DPS
-            param.name = self._get_create_parname(parname, fullparname)
-            param.string_value = value
-            param.save()
-        if param.name.isNumeric():
-            param.numerical_value = float(value)
-        else:
-            param.string_value = str(value)
-        param.save()
-
-    def new_param(self, parname, value, fullparname=None):
-        param = DatasetParameter()
-        param.parameterset = self.DPS
-        param.name = self._get_create_parname(parname, fullparname)
-        param.string_value = value
-        param.save()
-        if param.name.isNumeric():
-            param.numerical_value = float(value)
-        else:
-            param.string_value = str(value)
-        param.save()
-
-    def set_param_list(self, parname, value_list, fullparname=None):
-        self.delete_params(parname)
-        for value in value_list:
-            if value != None:
-                self.new_param(parname, value, fullparname)
-
-    def set_params_from_dict(self, dict):
-        print type(dict)
-        for (key, value) in dict.iteritems():
-            if type(value) is list:
-                self.set_param_list(key, value)
-            else:
-                if value != None:
-                    self.set_param(key, value)
-
-    def delete_params(self, parname):
-        params = self.get_params(parname)
-        for param in params:
-            param.delete()
-
-    def _get_create_parname(self, parname,
-                            fullparname=None, example_value=None):
-        try:
-            paramName = ParameterName.objects.get(name=parname,
-                                                  schema=self.get_schema())
-        except ObjectDoesNotExist:
-            paramName = ParameterName()
-            paramName.schema = self.get_schema()
-            paramName.name = parname
-            if fullparname:
-                paramName.full_name = fullparname
-            else:
-                paramName.full_name = parname
-            if example_value:
-                try:
-                    float(example_value)
-                    paramName.datatype = ParameterName.NUMERIC
-                except (TypeError, ValueError):
-                    paramName.datatype = ParameterName.STRING
-            else:
-                paramName.datatype = ParameterName.STRING
-            paramName.is_searchable = True
-            paramName.save()
-        return paramName
+        super(Task, self).__init__(parentObject=self.dataset,
+                                   schema=self.schema_name)
 
     def get_status(self, value=False):
         try:
