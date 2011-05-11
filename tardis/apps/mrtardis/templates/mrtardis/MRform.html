@@ -68,6 +68,7 @@ $(document).ready(function(){
 		$("#DSfileList").html("");
 		$("a[href=#cancelFileSelect]").hide();
 		updateFileList(".mtz");
+		updateParForm();
 	    }
 	});
     }
@@ -85,9 +86,16 @@ $(document).ready(function(){
 	return false;
     });
 
-    $("select#id_dataset").change(function() {
+    function dsSelectAction(that) {
 	$("a[href=#cancelFileSelect]").show();
-	loadDSFileList($(this).val());
+	loadDSFileList(that.val());
+    }
+    $("#chooseDSdisplay").bind('click', function() {
+	dsSelectAction($(this).siblings("select#id_dataset"));
+	return false;
+    });
+    $("select#id_dataset").change(function() {
+	dsSelectAction($(this));
 	return false;
     });
 
@@ -192,7 +200,7 @@ $(document).ready(function(){
 <p>
 <div class="copyFromOtherDataset">
 Or choose one from one of your datasets:<br/>
-{{ datasetSelectForm }}
+{{ datasetSelectForm }} <a href="#" id="chooseDSdisplay">show</a>
 <div id="DSfileList">
 </div>
 <a href="#cancelFileSelect">Cancel file selection</a>

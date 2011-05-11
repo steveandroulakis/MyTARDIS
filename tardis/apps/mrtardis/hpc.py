@@ -136,13 +136,17 @@ class HPC:
             print localfilepath
             print self.getHomeDir() + "/" + remotefile
 
+    def _get_hpc_fulldir(self, remoterelativepath):
+        remotepath = "/nfs/monash/home/" + self.username +\
+            "/" + remoterelativepath
+        return remotepath
+
     def upload_filelist(self, remoterelativepath, filelist, localpath=""):
         """
         upload files to hpc using path parameters
         """
         self.initSFTP()
-        remotepath = "/nfs/monash/home/" + self.username +\
-            "/" + remoterelativepath
+        remotepath = self._get_hpc_fulldir(remoterelativepath)
         self.sftpclient.mkdir(remotepath)
         for filename in filelist:
             localfilepath = localpath + "/" + filename
@@ -150,9 +154,10 @@ class HPC:
             #print remotefilepath
             self.sftpclient.put(localfilepath, remotefilepath, callback=None)
 
-    def download(self, remotepath, localpath,
+    def download(self, remoterelativepath, localpath,
                  filelist=None, excludefiles=None):
         self.initSFTP()
+        remotepath = self._get_hpc_fulldir(remoterelativepath)
         if filelist == None:
             filelist = self.sftpclient.listdir(remotepath)
         filteredlist = []

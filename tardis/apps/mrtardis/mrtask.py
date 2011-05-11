@@ -44,6 +44,7 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 
 from tardis.tardis_portal.models import Dataset_File
+from tardis.tardis_portal.staging import get_full_staging_path
 
 import tardis.apps.mrtardis.utils as utils
 from tardis.apps.mrtardis.models import HPCUser
@@ -56,6 +57,7 @@ class MRtask(Task):
     official task tasktype: "mrtardis"
     """
     schema_name = "http://localhost/task/mrtardis"
+    namespace = schema_name
 
     def run(self, request):
         """
@@ -80,18 +82,18 @@ class MRtask(Task):
         self.set_param_list("jobid", jobids)
         return jobids
 
-    def add_pdb_files(self):
+    def add_pdb_files(self, username):
         """
         extract PDB files from zips then add all pdb filenames as parameters
         """
-        self.extractPDBzips()
+        self.extractPDBzips(username)
         pdbfiles = Dataset_File.objects.filter(dataset=self.dataset,
                                                filename__iendswith=".pdb")
         self.delete_params("PDBfile")
         for pdbfile in pdbfiles:
             self.new_param("PDBfile", pdbfile.filename)
 
-    def extractPDBzips(self):
+    def extractPDBzips(self, username):
         """
         Extracts pdb files out of zips, adds them to the dataset and
         removes the zip.
@@ -106,12 +108,13 @@ class MRtask(Task):
                 if filename.endswith((".pdb", ".PDB")) and \
                         not filename.startswith("__MACOSX"):
                     extractlist.append(filename)
-            thiszip.extractall(settings.STAGING_PATH, extractlist)
+            thiszip.extractall(get_full_staging_path(username), extractlist)
             thiszip.close()
             for pdbfile in extractlist:
                 #print pdbfile
-                utils.add_staged_file_to_dataset(pdbfile, self.dataset.id,
-                                           mimetype="chemical/x-pdb")
+                utils.add_staged_file_to_dataset(
+                    pdbfile, self.dataset.id, username,
+                    mimetype="chemical/x-pdb")
             zipfileobj.deleteCompletely()
 
     def add_mtz_file(self):
@@ -161,6 +164,7 @@ class MRtask(Task):
                        "packing",
                        "ensemble_number"]
         for par_string in par_strings:
+            thisvalue = None
             try:
                 thisvalue = self.get_param(par_string, value=True)
             except ObjectDoesNotExist:
@@ -244,7 +248,7 @@ class MRtask(Task):
                     args=[self.dataset.id]))
         wget_command = "wget -O - %s?jobid=$JOB_ID" % pingurl
         ## ping server ten times with more and more delay
-        pbs_footer = "touch jobid-$JOB_ID.finished"
+        pbs_footer = "touch jobid-$JOB_ID.finished\n"
         pbs_footer += "I=0; while [[ \"true\" != `%s`" % wget_command
         pbs_footer += "&& $I -lt 10 ]];"
         pbs_footer += "do echo yes; sleep $(($I*30)); I=$(($I+1)); done"
@@ -267,13 +271,15 @@ class MRtask(Task):
                     output += pbs_footer
                     jobfilename = pdbfile + "_" + sg + "_" + \
                         str(rmsd) + ".jobfile"
-                    ofile = open(os.path.join(settings.STAGING_PATH,
-                                              jobfilename), 'w')
+                    ofile = open(os.path.join(
+                            get_full_staging_path(request.user.username),
+                            jobfilename), 'w')
                     ofile.write(output)
                     ofile.close()
                     utils.add_staged_file_to_dataset(
                         jobfilename,
                         self.dataset.id,
+                        request.user.username,
                         mimetype="application/x-shellscript")
                     self.new_param("jobscript", jobfilename)
 

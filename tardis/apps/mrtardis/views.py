@@ -12,6 +12,7 @@ from tardis.tardis_portal.models import Dataset
 from tardis.tardis_portal.models import Dataset_File
 from tardis.tardis_portal.auth import decorators as authz
 from tardis.tardis_portal.ajax import ajax_only
+from tardis.tardis_portal.staging import get_full_staging_path
 
 from tardis.apps.mrtardis.utils import test_hpc_connection
 from tardis.apps.mrtardis.models import HPCUser
@@ -134,7 +135,8 @@ def MRform(request, experiment_id):
         olddataset = Dataset.objects.get(pk=request.POST['dataset'])
         oldMRtask = MRtask(dataset=olddataset)
         newMRtask = MRtask.clone(oldInstance=oldMRtask,
-                                 newDescription=request.POST['description'])
+                                 newDescription=request.POST['description'],
+                                 username=request.user.username)
         newMRtask.set_status("unsubmitted")
         dataset = newMRtask.dataset
         pass  # run new MR based on finished one
@@ -188,7 +190,7 @@ def add_pdb_files(request, dataset_id):
     :returns: 'true' for ajax if successful.
     """
     thisMR = MRtask(dataset_id=dataset_id)
-    thisMR.add_pdb_files()
+    thisMR.add_pdb_files(request.user.username)
     return HttpResponse("true")
 
 
@@ -360,10 +362,14 @@ def jobfinished(request, dataset_id):
     for jid in thisMR.get_params("jobid", value=True):
         if jid == jobid:
             thisMR.new_param("jobidstatus", jobid + "-finished")
-    if thisMR.retrievalTrigger() and request.user.email != '':
-        thisMR.sendMail(request.user.get_full_name(),
-                        request.user.email,
-                        request.build_absolute_uri("/"))
+    if thisMR.retrievalTrigger():
+        hpcusers = HPCUser.objects.filter(
+            hpc_username=thisMR.get_param("hpc_username", value=True))
+        for hpcuser in hpcusers:
+            if hpcuser.user.email != '':
+                thisMR.sendMail(hpcuser.user.get_full_name(),
+                                hpcuser.user.email,
+                                request.build_absolute_uri("/"))
     return HttpResponse("true")
 
 
@@ -412,11 +418,12 @@ def loadDSFileList(request, experiment_id):
 def addFile(request, dataset_id):
     import shutil
     from tardis.apps.mrtardis.utils import add_staged_file_to_dataset
-    from django.conf import settings
     if 'file_id' not in request.POST:
         return HttpResponseNotFound()
     file_id = request.POST['file_id']
     file = Dataset_File.objects.get(pk=file_id)
-    shutil.copy(file.get_absolute_filepath(), settings.STAGING_PATH)
-    add_staged_file_to_dataset(file.filename, dataset_id, file.mimetype)
+    shutil.copy(file.get_absolute_filepath(),
+                get_full_staging_path(request.user.username))
+    add_staged_file_to_dataset(file.filename, dataset_id,
+                               request.user.username, file.mimetype)
     return parseMTZfile(request, dataset_id=dataset_id)

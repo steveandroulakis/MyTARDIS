@@ -140,8 +140,8 @@ class ParameterSetManager(object):
             param.parameterset = self.parameterset
             param.name = self._get_create_parname(parname, fullparname,
                 example_value=example_value)
-            param.string_value = value
-            param.save()
+            #param.string_value = value
+            #param.save()
         if param.name.isNumeric():
             param.numerical_value = float(value)
         else:

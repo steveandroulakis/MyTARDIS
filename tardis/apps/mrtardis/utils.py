@@ -43,6 +43,7 @@ from django.conf import settings
 from tardis.tardis_portal.models import Dataset
 from tardis.tardis_portal.models import Dataset_File
 from tardis.tardis_portal.staging import duplicate_file_check_rename
+from tardis.tardis_portal.staging import get_full_staging_path
 from tardis.tardis_portal.logger import logger
 
 from tardis.apps.mrtardis.hpc import HPC
@@ -201,14 +202,14 @@ def calcMW(sequence):
     return mw
 
 
-def add_staged_file_to_dataset(rel_filepath, dataset_id,
+def add_staged_file_to_dataset(rel_filepath, dataset_id, username,
                                mimetype="application/octet-stream"):
     """
     add file in STAGING_PATH to a dataset
     may be replaced by main code functions.
     quick and dirty hack to get it working
     """
-    originfilepath = os.path.join(settings.STAGING_PATH, rel_filepath)
+    originfilepath = os.path.join(get_full_staging_path(username), rel_filepath)
     dataset = Dataset.objects.get(pk=dataset_id)
     newDatafile = Dataset_File()
     newDatafile.dataset = dataset
