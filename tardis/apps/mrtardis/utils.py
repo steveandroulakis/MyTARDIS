@@ -205,7 +205,7 @@ def calcMW(sequence):
 def add_staged_file_to_dataset(rel_filepath, dataset_id, username,
                                mimetype="application/octet-stream"):
     """
-    add file in STAGING_PATH to a dataset
+    add file in user's staging path to a dataset
     may be replaced by main code functions.
     quick and dirty hack to get it working
     """
@@ -227,4 +227,24 @@ def add_staged_file_to_dataset(rel_filepath, dataset_id, username,
     if not os.path.exists(os.path.dirname(full_file_path)):
         os.makedirs(os.path.dirname(full_file_path))
     shutil.move(originfilepath, full_file_path)
+    newDatafile.save()
+
+
+def aadd_staged_file_to_dataset(rel_filepath, dataset_id, username,
+                               mimetype="application/octet-stream"):
+    """
+    add file in user's staging path to a dataset
+    may be replaced by main code functions.
+    quick and dirty hack to get it working
+    """
+    originfilepath = os.path.join(get_full_staging_path(username),
+                                  rel_filepath)
+    dataset = Dataset.objects.get(pk=dataset_id)
+
+    newDatafile = Dataset_File(
+        dataset=dataset,
+        url=originfilepath,
+        protocol="staging",
+        mimetype=mimetype,
+        )
     newDatafile.save()

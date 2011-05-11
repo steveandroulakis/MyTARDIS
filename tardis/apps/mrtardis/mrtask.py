@@ -40,7 +40,6 @@ import re
 import zipfile
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.conf import settings
 from django.core.urlresolvers import reverse
 
 from tardis.tardis_portal.models import Dataset_File
@@ -48,10 +47,10 @@ from tardis.tardis_portal.staging import get_full_staging_path
 
 import tardis.apps.mrtardis.utils as utils
 from tardis.apps.mrtardis.models import HPCUser
-from tardis.tardis_portal.task import Task
+from tardis.apps.mrtardis.hpctask import HPCTask
 
 
-class MRtask(Task):
+class MRtask(HPCTask):
     """
     Subclass of :class:`tardis.apps.mrtardis.task.Task`
     official task tasktype: "mrtardis"

@@ -1,5 +1,3 @@
-import uuid
-
 from django.core.exceptions import ObjectDoesNotExist
 
 from tardis.tardis_portal.ParameterSetManager import ParameterSetManager
@@ -7,9 +5,6 @@ from tardis.tardis_portal.models import DatasetParameterSet
 from tardis.tardis_portal.models import Dataset
 from tardis.tardis_portal.models import Dataset_File
 from tardis.tardis_portal.staging import get_full_staging_path
-from tardis.apps.mrtardis.hpc import HPC
-from tardis.apps.mrtardis.models import HPCUser
-from tardis.apps.mrtardis.utils import add_staged_file_to_dataset
 
 
 class Task(ParameterSetManager):
@@ -18,6 +13,12 @@ class Task(ParameterSetManager):
     dataset = None
     DPS = None
     myHPC = None
+
+    doNotCopyParams = ['TaskStatus',
+                       'jobscript',  # many
+                       'jobid',  # many
+                       'jobidstatus',  # many
+                       ]
 
     def __init__(self, dataset=None, dataset_id=None,
                  description="", experiment_id=None):
@@ -63,43 +64,8 @@ class Task(ParameterSetManager):
         if current_status != status:
             self.set_param("TaskStatus", status, "Status of task")
 
-    def get_hpc_dir(self):
-        try:
-            dir = self.get_param("hpc_directory", value=True)
-        except ObjectDoesNotExist:
-            dir = "mytardis-task/%s/%s" % (self.schema_name.split("/")[-1],
-                                           str(uuid.uuid1()))
-            self.set_param("hpc_directory", dir)
-        return dir
-
     def get_files(self):
         return Dataset_File.objects.filter(dataset=self.dataset)
-
-    def stageToHPC(self, username, location="msg"):
-        hpclink = self.connectToHPC(location, username)
-        hpcdir = self.get_hpc_dir()
-        for upfile in self.get_files():
-            upfilename = upfile.get_absolute_filepath()
-            hpcfilename = hpcdir + "/" + upfile.filename
-            hpclink.upload(upfilename, hpcfilename)
-            self.new_param("uploaded_file", upfile.filename)
-
-    def run_staged_task(self, username, location="msg"):
-        self.set_param("hpc_username", username)
-        jobscripts = self.get_params("jobscript", value=True)
-        if location == "msg":
-            submitCommand = "source /etc/profile; cd " +\
-                self.get_hpc_dir() + "; qsub"
-        commandlist = ["%s %s" % (submitCommand, jobscript)
-                   for jobscript in jobscripts]
-        returnstrings = self.connectToHPC(
-            location, username).runCommands(commandlist)
-        return [Task.extractJobID(retstring[0]) for retstring in returnstrings]
-
-    def connectToHPC(self, location, username):
-        if not self.myHPC:
-            self.myHPC = HPC(location, username)
-        return self.myHPC
 
     def get_by_value(self, value):
         try:
@@ -110,32 +76,6 @@ class Task(ParameterSetManager):
             except (ObjectDoesNotExist, ValueError):
                 return None
         return par
-
-    def retrievalTrigger(self):
-        statuses = self.get_params("jobidstatus", value=True)
-        for jid in self.get_params("jobid", value=True):
-            if jid + "-finished" not in statuses:
-                return False
-        self.set_status("readyToRetrieve")
-        self.retrieveFromHPC()
-        return True
-
-    def retrieveFromHPC(self, location="msg"):
-        if self.get_status(value=True) != "readyToRetrieve":
-            return False
-        hpc_username = self.get_param("hpc_username", value=True)
-        user = HPCUser.objects.get(hpc_username=hpc_username)
-        excludefiles = self.get_params("uploaded_file", value=True)
-        hpclink = self.connectToHPC(location, hpc_username)
-        newfiles = hpclink.download(self.get_hpc_dir(),
-                                    get_full_staging_path(user.user.username),
-                                    excludefiles=excludefiles)
-        for newfile in newfiles:
-            add_staged_file_to_dataset(newfile, self.dataset.id,
-                                       user.user.username)
-        hpclink.rmtree(self.get_hpc_dir())
-        self.set_status("finished")
-        return True
 
     def parseResults(self):
         """
@@ -154,24 +94,6 @@ class Task(ParameterSetManager):
         message += "\nBest regards,\nYour myTardis\n"
         send_mail(subject, message, 'mytardis@example.com',
                   [toAddress])
-
-    def check_status_on_hpc(self):
-        jobids = self.get_params("jobid")
-        print jobids
-
-    @staticmethod
-    def extractJobID(inputstring):
-        import re
-        # from txt2re.com
-        re1 = '.*?'  # Non-greedy match on filler
-        re2 = '(\\d+)'  # Integer Number 1
-
-        rg = re.compile(re1 + re2, re.IGNORECASE | re.DOTALL)
-        m = rg.search(inputstring)
-        if m:
-            int1 = m.group(1)
-            return int1
-        return False
 
     @classmethod
     def getTaskList(cls, experiment_id, status="any"):
@@ -202,22 +124,15 @@ class Task(ParameterSetManager):
     def clone(cls, oldInstance, newDescription, username):
         newInstance = cls(description=newDescription,
                           experiment_id=oldInstance.dataset.experiment.id)
-        doNotCopyParams = ['TaskStatus',
-                           'readyToSubmit',
-                           'jobscript',  # many
-                           'hpc_directory',
-                           'uploaded_file',  # many
-                           'jobid',  # many
-                           'jobidstatus',  # many
-                           ]
         for param in oldInstance.parameters:
-            if param.name.name not in doNotCopyParams:
+            if param.name.name not in cls.doNotCopyParams:
                 if param.name.isNumeric():
                     value = param.numerical_value
                 else:
                     value = param.string_value
                 newInstance.new_param(param.name.name, value)
         import shutil
+        import os
         for filename in oldInstance.get_params("uploaded_file", value=True):
             if filename[-8:] != ".jobfile":
                 thisfile = Dataset_File.objects.get(
@@ -225,6 +140,13 @@ class Task(ParameterSetManager):
                     filename=filename)
                 shutil.copy(thisfile.get_absolute_filepath(),
                             get_full_staging_path(username))
-                add_staged_file_to_dataset(filename, newInstance.dataset.id,
-                                           thisfile.mimetype)
+                newfileurl = os.path.join(get_full_staging_path(username),
+                                          filename)
+                newDatafile = Dataset_File(
+                    dataset=newInstance.dataset,
+                    url=newfileurl,
+                    protocol="staging",
+                    mimetype=thisfile.mimetype,
+                    )
+                newDatafile.save()
         return newInstance
