@@ -142,7 +142,7 @@ INSTALLED_APPS = (
     'tardis.tardis_portal.templatetags',
     'registration',
     'south'
-    )
+    ) + apps
 
 
 PUBLISH_PROVIDERS = (
