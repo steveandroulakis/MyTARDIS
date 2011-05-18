@@ -1,0 +1,6 @@
+<h3>Running or finished jobs</h3>
+<table>
+{% for jobname, jobids in jobs %}
+<tr><td>{{ jobname }}</td><td>{{ jobids }}</td></tr>
+{% endfor %}
+</table>

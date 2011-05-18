@@ -27,4 +27,6 @@ urlpatterns = patterns('tardis.apps.mrtardis.views',
                         'loadDSFileList'),
                        (r'^addFile/(?P<dataset_id>\d+)/$',
                         'addFile'),
+                       (r'^runningJobs/(?P<experiment_id>\d+)/$',
+                        'runningJobs'),
                        )

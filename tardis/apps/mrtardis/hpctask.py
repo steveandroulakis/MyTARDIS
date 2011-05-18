@@ -51,7 +51,8 @@ class HPCTask(Task):
                    for jobscript in jobscripts]
         returnstrings = self.connectToHPC(
             location, username).runCommands(commandlist)
-        return [Task.extractJobID(retstring[0]) for retstring in returnstrings]
+        return [HPCTask.extractJobID(retstring[0])
+                for retstring in returnstrings]
 
     def connectToHPC(self, location, username):
         if not self.myHPC:

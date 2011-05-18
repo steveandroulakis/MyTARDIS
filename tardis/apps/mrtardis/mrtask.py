@@ -250,7 +250,7 @@ class MRtask(HPCTask):
         pbs_footer = "touch jobid-$JOB_ID.finished\n"
         pbs_footer += "I=0; while [[ \"true\" != `%s`" % wget_command
         pbs_footer += "&& $I -lt 10 ]];"
-        pbs_footer += "do echo yes; sleep $(($I*30)); I=$(($I+1)); done"
+        pbs_footer += "do echo yes; sleep $(($I*2)); I=$(($I+1)); done"
         #pbs_footer = wget_command
         phaser_command = "phenix.phaser"
         spacegroups = [utils.sgNumNameTrans(number=sgnum)

@@ -100,6 +100,17 @@ $(document).ready(function() {
 	return false;
     });
 
+//    $("#tasklist").bind('click', function() {
+        $.ajax({
+            type: "GET",
+            dataType: "html",
+            url: "{% url tardis.apps.mrtardis.views.runningJobs experiment_id %}",
+            success: function(data) {
+                $("#tasklist").html(data);
+            },
+        });
+
+   // });
 
 });
 </script>
@@ -144,6 +155,9 @@ Please check your username. If the problem persists, please contact the myTardis
       </form>
     </p>
   {% endif %}
+
+<div id="tasklist">
+</div>
 
 <!-- debug only
   <p style="text-align:right;font-size:80%;">

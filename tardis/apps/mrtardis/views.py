@@ -346,9 +346,10 @@ def runningJobs(request, experiment_id):
     if 'check' in request.POST and request.POST['check'] == "yesplease":
         for task in MRlist:
             task.check_status_on_hpc()
-    jobids = [jobs.get_params("jobid") for jobs in MRlist]
+    jobs = [(jobs.dataset.description, jobs.get_params("jobid", value=True))
+              for jobs in MRlist]
     c = Context({
-            'jobids': jobids,
+            'jobs': jobs,
             })
     return render_to_response("mrtardis/joblist.html", c)
 
