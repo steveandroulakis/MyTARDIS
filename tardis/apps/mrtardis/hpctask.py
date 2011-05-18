@@ -85,9 +85,18 @@ class HPCTask(Task):
         self.set_status("finished")
         return True
 
-    def check_status_on_hpc(self):
-        jobids = self.get_params("jobid")
-        print jobids
+    def check_status_on_hpc(self, location="msg"):
+        hpc_username = self.get_param("hpc_username", value=True)
+        jobids = self.get_params("jobid", value=True)
+        statuses = self.get_params("jobidstatus", value=True)
+        for jobid in jobids:
+            if jobid + "-finished" not in statuses:
+                hpclink = self.connectToHPC(location, hpc_username)
+                listresult = hpclink.listdir([self.get_hpc_dir(),
+                                    "jobid-%s.finished" % jobid])
+                if listresult:
+                    self.new_param("jobidstatus", jobid + "-finished")
+        return self.retrievalTrigger()
 
     @staticmethod
     def extractJobID(inputstring):

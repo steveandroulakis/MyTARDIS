@@ -29,4 +29,6 @@ urlpatterns = patterns('tardis.apps.mrtardis.views',
                         'addFile'),
                        (r'^runningJobs/(?P<experiment_id>\d+)/$',
                         'runningJobs'),
+                       (r'^checkjobs/(?P<dataset_id>\d+)/$',
+                        'checkjobs'),
                        )

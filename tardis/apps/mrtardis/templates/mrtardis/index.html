@@ -100,7 +100,7 @@ $(document).ready(function() {
 	return false;
     });
 
-//    $("#tasklist").bind('click', function() {
+    function updateJoblist() {
         $.ajax({
             type: "GET",
             dataType: "html",
@@ -109,9 +109,9 @@ $(document).ready(function() {
                 $("#tasklist").html(data);
             },
         });
+    }
 
-   // });
-
+    updateJoblist();
 });
 </script>
 <p id="cancelbutton" style="text-align:right;"><a href="#cancel">Cancel</a></p>

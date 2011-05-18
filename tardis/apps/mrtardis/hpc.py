@@ -217,6 +217,22 @@ class HPC:
         else:
             self.sftpclient.remove(path)
 
+    def listdir(self, path):
+        self.initSFTP()
+        print type(path)
+        if type(path) is list:
+            print "joining the list"
+            print path
+            relpath = os.path.join(*path)
+            print relpath
+        else:
+            relpath = path
+        fullpath = self._get_hpc_fulldir(relpath)
+        try:
+            return self.sftpclient.stat(fullpath)
+        except IOError:
+            return False
+
     @staticmethod
     def getPublicKey():
         return secrets.publickey

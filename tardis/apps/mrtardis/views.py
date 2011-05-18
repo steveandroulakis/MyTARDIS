@@ -346,9 +346,10 @@ def runningJobs(request, experiment_id):
     if 'check' in request.POST and request.POST['check'] == "yesplease":
         for task in MRlist:
             task.check_status_on_hpc()
-    jobs = [(jobs.dataset.description, jobs.get_params("jobid", value=True))
+    jobs = [(jobs.dataset, jobs.get_params("jobid", value=True))
               for jobs in MRlist]
     c = Context({
+            'experiment_id': experiment_id,
             'jobs': jobs,
             })
     return render_to_response("mrtardis/joblist.html", c)
@@ -428,3 +429,11 @@ def addFile(request, dataset_id):
     add_staged_file_to_dataset(file.filename, dataset_id,
                                request.user.username, file.mimetype)
     return parseMTZfile(request, dataset_id=dataset_id)
+
+
+@ajax_only
+@authz.dataset_access_required
+def checkjobs(request, dataset_id):
+    thisMR = MRtask(dataset_id=dataset_id)
+    thisMR.check_status_on_hpc()
+    return HttpResponse("true")

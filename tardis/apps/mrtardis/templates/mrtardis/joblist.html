@@ -1,6 +1,48 @@
-<h3>Running or finished jobs</h3>
-<table>
-{% for jobname, jobids in jobs %}
-<tr><td>{{ jobname }}</td><td>{{ jobids }}</td></tr>
-{% endfor %}
-</table>
+<script type="text/javascript">
+
+    function updateJoblist() {
+        $.ajax({
+            type: "GET",
+            dataType: "html",
+            url: "{% url tardis.apps.mrtardis.views.runningJobs experiment_id %}",
+            success: function(data) {
+                $("#tasklist").html(data);
+            },
+        });
+    }
+
+    $("a.checkjob").bind("click", function(event) {
+	event.preventDefault();
+	console.log($(this).attr("id"));
+	$.ajax({url:$(this).attr("id"),});
+	updateJoblist();
+	return false;
+    });
+
+</script>
+{% if jobs %}
+  <h3>Running or finished jobs</h3>
+  <table>
+    <tr>
+      <th style="border-bottom: 1px solid black;">Dataset name</th>
+      <th style="border-bottom: 1px solid black;">Jobids on HPC</th>
+      <th>
+      </th>
+    </tr>
+    {% for jobds, jobids in jobs %}
+      <tr>
+	<td>{{ jobds.description }}</td><td>
+	{% for jobid in jobids %}
+	  {{ jobid }}{% if not forloop.last %}, {% endif %}
+	{% endfor %}
+      </td>
+      <td>
+	<a href="#" id="{% url tardis.apps.mrtardis.views.checkjobs jobds.id  %}" class="checkjob">
+	Check/retrieve</a>
+      </td>
+      </tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <h3>No active jobs on HPC</h3>
+{% endif %}
