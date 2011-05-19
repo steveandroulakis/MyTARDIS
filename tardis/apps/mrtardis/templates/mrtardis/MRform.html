@@ -178,6 +178,11 @@ $(document).ready(function(){
 			success: function(data) {
 			    $("#mrtardis").html(data);
 			},
+			error: function() {
+			    $("#hpcerror").html("There was an error with the HPC connection, please try again later or contact the system administrator.");
+			    $(document).scrollTop(175);
+			    $('#jqmAlertLoading').jqmHide();
+			},
 		    });
 		}
 	    },
@@ -204,6 +209,7 @@ $(document).ready(function(){
 </div>
 <h2>Job/dataset name: {{ dataset.description }}</h2>
 <p style="color:red;">{{ message }}</p>
+<div id="hpcerror" style="color:red;"></div>
 <div id="submitted">
 <h3>MTZ file</h3>
 <p><b>Already stored file</b>  <a href="#" id="refreshMTZ">[refresh]</a>
