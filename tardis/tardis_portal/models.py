@@ -1022,3 +1022,28 @@ def pre_save_parameter(sender, **kwargs):
                 f.write(b64)
             f.close()
             parameter.string_value = filename
+
+
+class RegistrationStatus(models.Model):
+
+    PASS = 0
+    WARNING = 1
+    ERROR = 2
+
+    _STATUS_TYPES = (
+        (PASS, 'Pass'),
+        (WARNING, 'Warning'),
+        (ERROR, 'Error'),
+    )
+
+    timestamp = models.DateTimeField(auto_now_add=True)
+    action = models.CharField(max_length=400)
+    status = models.IntegerField(
+        choices=_STATUS_TYPES, default=ERROR)
+    message = models.TextField(blank=True)
+    site = models.CharField(max_length=400, blank=True)
+    experiment = models.ForeignKey(Experiment, null=True, blank=True)
+
+    def __unicode__(self):
+        return str(self.timestamp) + " / " + str(self._STATUS_TYPES[self.status][1]) \
+               + ": " + self.action

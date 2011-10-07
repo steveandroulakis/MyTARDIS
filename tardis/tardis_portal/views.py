@@ -73,7 +73,7 @@ from tardis.tardis_portal.models import Experiment, ExperimentParameter, \
     DatafileParameter, DatasetParameter, ExperimentACL, Dataset_File, \
     DatafileParameterSet, ParameterName, GroupAdmin, Schema, \
     Dataset, ExperimentParameterSet, DatasetParameterSet, \
-    UserProfile, UserAuthentication, Token
+    UserProfile, UserAuthentication, Token, RegistrationStatus
 
 from tardis.tardis_portal import constants
 from tardis.tardis_portal.auth.localdb_auth import django_user, django_group
@@ -866,6 +866,22 @@ def register_experiment_ws_xmldata(request):
             response['Location'] = request.build_absolute_uri(
                 '/experiment/view/' + str(eid))
             return response
+        else:
+            print "INVALID@"
+            print form.errors
+            print request.POST
+
+            ingest_action = "Ingest Received"
+            fail_message = "Form validation failure: <br/>" \
+                "Form Errors: " + str(form.errors) + "<br/>" \
+                "Request POST: " + str(request.POST)
+
+            rs = RegistrationStatus(action=ingest_action,
+                                    status=RegistrationStatus.ERROR,
+                                    message=fail_message,
+                                    )
+
+            rs.save()
     else:
         form = RegisterExperimentForm()  # An unbound form
 
