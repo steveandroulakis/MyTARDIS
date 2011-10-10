@@ -796,6 +796,7 @@ def _registerExperimentDocument(filename, created_by, expid=None,
 def register_experiment_ws_xmldata(request):
 
     status = ''
+    ingest_action = "Ingest Received"
     if request.method == 'POST':  # If the form has been submitted...
 
         # A form bound to the POST data
@@ -803,16 +804,58 @@ def register_experiment_ws_xmldata(request):
         if form.is_valid():  # All validation rules pass
 
             xmldata = request.FILES['xmldata']
+            xmldata_meta = xmldata.name
             username = form.cleaned_data['username']
             originid = form.cleaned_data['originid']
             from_url = form.cleaned_data['from_url']
+            owners = request.POST.getlist('experiment_owner')
+
+            debug_POST = "username: " + username + "<br/>" \
+                "xmldata: " + xmldata_meta + "<br/>" \
+                "originid: " + originid + "<br/>" \
+                "from_url: " + from_url + "<br/>" \
+
+            owner_string = ""
+            for owner in owners:
+                owner_string = owner_string + owner
+                debug_POST = debug_POST + "owner: " + owner + "<br/>"
+
+            if len(owner_string) == 0:
+                fail_message = "No owners submitted with ingest <br/>" \
+                    "Debug: " + str(debug_POST)
+
+                rs = RegistrationStatus(action=ingest_action,
+                                        status=RegistrationStatus.WARNING,
+                                        message=fail_message,
+                                        )
+
+                rs.save()
 
             user = auth_service.authenticate(request=request,
                                              authMethod=localdb_auth_key)
             if user:
                 if not user.is_active:
+                    fail_message = "Authorisation failure: <br/>" \
+                        "User credentials passed, but user is not active<br/>" \
+                        "Debug: " + str(debug_POST)
+
+                    rs = RegistrationStatus(action=ingest_action,
+                                            status=RegistrationStatus.ERROR,
+                                            message=fail_message,
+                                            )
+
+                    rs.save()
                     return return_response_error(request)
             else:
+                fail_message = "Authentication failure: <br/>" \
+                    "User does not exist, or password incorrect.<br/>" \
+                    "Debug: " + str(debug_POST)
+
+                rs = RegistrationStatus(action=ingest_action,
+                                        status=RegistrationStatus.ERROR,
+                                        message=fail_message,
+                                        )
+                rs.save()
                 return return_response_error(request)
 
             e = Experiment(
@@ -825,22 +868,39 @@ def register_experiment_ws_xmldata(request):
 
             filename = path.join(e.get_or_create_directory(),
                                  'mets_upload.xml')
-            print filename
+
             f = open(filename, 'wb+')
             for chunk in xmldata.chunks():
                 f.write(chunk)
             f.close()
 
             logger.info('=== processing experiment: START')
-            owners = request.POST.getlist('experiment_owner')
             try:
+                pass_message = "Ingest Successfully Received"
+
+                rs = RegistrationStatus(action=ingest_action,
+                                        status=RegistrationStatus.PASS,
+                                        message=pass_message,
+                                        experiment=e)
+                rs.save()
+
                 _registerExperimentDocument(filename=filename,
                                             created_by=user,
                                             expid=eid,
                                             owners=owners,
                                             username=username)
+
                 logger.info('=== processing experiment %s: DONE' % eid)
             except:
+                ingest_processing_action = "Ingest Processing"
+                fail_message = "METS metadata ingest failed"
+
+                rs = RegistrationStatus(action=ingest_processing_action,
+                                        status=RegistrationStatus.ERROR,
+                                        message=fail_message,
+                                        experiment=e)
+                rs.save()
+
                 logger.exception('=== processing experiment %s: FAILED!' % eid)
                 return return_response_error(request)
 
@@ -859,6 +919,16 @@ def register_experiment_ws_xmldata(request):
                     logger.info('=== file-transfer request submitted to %s'
                                 % file_transfer_url)
                 except:
+                    transfer_action = "File Transfer Request"
+                    fail_message = "Contacting " + file_transfer_url +  \
+                        " failed with this data: <br/>" + \
+                        str(data)
+
+                    rs = RegistrationStatus(action=transfer_action,
+                                            status=RegistrationStatus.ERROR,
+                                            message=fail_message,
+                                            experiment=e)
+                    rs.save()
                     logger.exception('=== file-transfer request to %s FAILED!'
                                      % file_transfer_url)
 
@@ -867,14 +937,10 @@ def register_experiment_ws_xmldata(request):
                 '/experiment/view/' + str(eid))
             return response
         else:
-            print "INVALID@"
-            print form.errors
-            print request.POST
 
             ingest_action = "Ingest Received"
             fail_message = "Form validation failure: <br/>" \
                 "Form Errors: " + str(form.errors) + "<br/>" \
-                "Request POST: " + str(request.POST)
 
             rs = RegistrationStatus(action=ingest_action,
                                     status=RegistrationStatus.ERROR,
