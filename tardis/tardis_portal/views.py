@@ -948,6 +948,7 @@ def register_experiment_ws_xmldata(request):
                 return return_response_error(request)
 
             if from_url:
+                transfer_action = "File Transfer Request"
                 logger.debug('=== sending file request')
                 try:
                     file_transfer_url = from_url + '/file_transfer/'
@@ -958,11 +959,36 @@ def register_experiment_ws_xmldata(request):
                                 request.build_absolute_uri(
                                     '/site-settings.xml/'),
                             })
-                    urlopen(file_transfer_url, data)
+                    transfer_result = urlopen(file_transfer_url, data)
                     logger.info('=== file-transfer request submitted to %s'
                                 % file_transfer_url)
+
+                    if not transfer_result.code == 200:
+                        fail_message = "Contacting " + file_transfer_url +  \
+                            " returned HTTP code: " + \
+                            str(transfer_result.code)
+
+                        logger.error(fail_message)
+
+                        rs = RegistrationStatus(action=transfer_action,
+                                                status=RegistrationStatus.ERROR,
+                                                message=fail_message,
+                                                experiment=e)
+                        rs.save()
+                    else:
+                        pass_message = "Contacting " + file_transfer_url +  \
+                            " returned HTTP code: " + \
+                            str(transfer_result.code)
+
+                        logger.info(pass_message)
+
+                        rs = RegistrationStatus(action=transfer_action,
+                                                status=RegistrationStatus.PASS,
+                                                message=pass_message,
+                                                experiment=e)
+                        rs.save()
+
                 except:
-                    transfer_action = "File Transfer Request"
                     fail_message = "Contacting " + file_transfer_url +  \
                         " failed with this data: <br/>" + \
                         str(data)
