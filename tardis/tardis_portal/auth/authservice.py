@@ -249,7 +249,6 @@ class AuthService():
         logger.debug('trying to get username by' +
             ' email ' + email)
 
-        username = email
         try:
             username =\
                 self._authentication_backends[plugin].getUsernameByEmail(email)
@@ -267,6 +266,9 @@ class AuthService():
             return user
         except UserAuthentication.DoesNotExist:
             pass
+
+        if not username:
+            return None
 
         # length of the maximum username
         max_length = 30
@@ -317,5 +319,5 @@ class AuthService():
                     except OSError:
                         logger.error("Couldn't create staging directory " +\
                             str(staging_path))
-                   
+
         return user

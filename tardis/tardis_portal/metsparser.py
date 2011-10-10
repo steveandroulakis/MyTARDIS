@@ -90,6 +90,7 @@ from tardis.tardis_portal import metsstruct
 from tardis.tardis_portal import models
 
 from django.conf import settings
+from tardis.tardis_portal.models import RegistrationStatus
 
 logger = logging.getLogger(__name__)
 
@@ -359,6 +360,11 @@ class MetsMetadataInfoHandler(ContentHandler):
         # the custom parser (or handler) to use for the given metadata
         self.customHandler = None
 
+        self.unsupported_schema = {}
+        self.unsupported_parametername = {}
+
+        self.ingest_action = "Ingest Processing"
+
     def startElementNS(self, name, qname, attrs):
         # just get the element name without the namespace
         elName = name[1]
@@ -597,6 +603,10 @@ class MetsMetadataInfoHandler(ContentHandler):
                                     experiment=self.modelExperiment)
                                 parameterSet.save()
 
+                                self._checkValidParameters(schema,
+                                                    self.tempMetadataHolder,
+                                                    parameterNames)
+
                                 # now let's process the experiment parameters
                                 for parameterName in parameterNames:
                                     if parameterName.name in \
@@ -627,6 +637,10 @@ class MetsMetadataInfoHandler(ContentHandler):
                                     dataset=dataset)
 
                                 datasetParameterSet.save()
+
+                                self._checkValidParameters(schema,
+                                                    self.tempMetadataHolder,
+                                                    parameterNames)
 
                                 # now let's process the dataset parameters
                                 for parameterName in parameterNames:
@@ -689,6 +703,10 @@ class MetsMetadataInfoHandler(ContentHandler):
                                     dataset_file=self.modelDatafile)
                                 datafileParameterSet.save()
 
+                                self._checkValidParameters(schema,
+                                                    self.tempMetadataHolder,
+                                                    parameterNames)
+
                                 # now let's process the datafile parameters
                                 for parameterName in parameterNames:
                                     if parameterName.name in \
@@ -702,8 +720,20 @@ class MetsMetadataInfoHandler(ContentHandler):
                                 createParamSetFlag['datafile'] = False
 
             except models.Schema.DoesNotExist:
-                logger.warning('unsupported schema being ingested ' +
-                    self.elementNamespace)
+                fail_message = 'Unsupported schema found ' + \
+                    self.elementNamespace
+
+                logger.warning(fail_message)
+
+                if not self.elementNamespace in self.unsupported_schema:
+                    self.unsupported_schema[self.elementNamespace] = "1"
+
+                    rs = RegistrationStatus(action=self.ingest_action,
+                                            status=RegistrationStatus.WARNING,
+                                            message=fail_message,
+                                            experiment=self.modelExperiment)
+
+                    rs.save()
 
             # reset the current xmlData child element so that if a new
             # parameter set is read, we can process it again
@@ -728,12 +758,31 @@ class MetsMetadataInfoHandler(ContentHandler):
         #logger.debug('saving parameter %s: %s' %
         #    (parameterName, parameterValue))
         if parameterName.isNumeric():
-            parameter = \
+            try:
+                parameter = \
                 getattr(models, parameterTypeClass)(
                 parameterset=parameterSet,
                 name=parameterName,
                 string_value=None,
                 numerical_value=float(parameterValue))
+
+                parameter.save()
+            except ValueError:
+                schema_paramname = str(parameterName.schema) + ":" + \
+                    parameterName.name
+                
+                fail_message = "Invalid value for numeric parameter " +\
+                    schema_paramname + ": " + parameterValue
+
+                logger.warning(fail_message)
+
+                rs = RegistrationStatus(action=self.ingest_action,
+                                        status=RegistrationStatus.WARNING,
+                                        message=fail_message,
+                                        experiment=self.modelExperiment)
+
+                rs.save()
+
         else:
             parameter = \
                 getattr(models, parameterTypeClass)(
@@ -741,7 +790,43 @@ class MetsMetadataInfoHandler(ContentHandler):
                 name=parameterName,
                 string_value=parameterValue,
                 numerical_value=None)
-        parameter.save()
+            parameter.save()
+
+    def _checkValidParameters(self, schema, tempMetadataHolder,
+                             parameterNames):
+        '''Check that the parameter described in xml exists in the database
+        '''
+
+        parameterNamesDict = {}
+        for parameterName in parameterNames:
+            parameterNamesDict[parameterName.name] = "1"
+
+        for tempMetadataHolderName in \
+            tempMetadataHolder:
+                if not tempMetadataHolderName in \
+                    parameterNamesDict:
+
+                    schema_paramname = str(schema) + ":" + \
+                                       str(tempMetadataHolderName)
+
+                    if not schema_paramname in self.unsupported_parametername:
+                        self.unsupported_parametername[schema_paramname] = "1"
+
+                        fail_message = "Unsupported parameter name found: " + \
+                            schema_paramname
+
+                        logger.warning(fail_message)
+
+                        rs = RegistrationStatus(action=
+                                                    self.ingest_action,
+                                                status=
+                                                    RegistrationStatus.WARNING,
+                                                message=
+                                                    fail_message,
+                                                experiment=
+                                                    self.modelExperiment)
+
+                        rs.save()
 
     def characters(self, chars):
         if self.processExperimentStruct:

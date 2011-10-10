@@ -1045,5 +1045,10 @@ class RegistrationStatus(models.Model):
     experiment = models.ForeignKey(Experiment, null=True, blank=True)
 
     def __unicode__(self):
-        return str(self.timestamp) + " / " + str(self._STATUS_TYPES[self.status][1]) \
+
+        experiment_id = ''
+        if self.experiment:
+            experiment_id = str(self.experiment.id) + " :: "
+
+        return experiment_id + str(self.timestamp) + " / " + str(self._STATUS_TYPES[self.status][1]) \
                + ": " + self.action

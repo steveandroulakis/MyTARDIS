@@ -42,6 +42,7 @@ import urllib2
 from urllib import urlencode, urlopen
 from os import path
 import logging
+from xml.sax._exceptions import SAXParseException
 
 from django.template import Context
 from django.conf import settings
@@ -749,6 +750,9 @@ def _registerExperimentDocument(filename, created_by, expid=None,
 
     '''
 
+    ingest_action = "Ingest Processing"
+    e = Experiment.objects.get(pk=expid)
+
     f = open(filename)
     firstline = f.readline()
     f.close()
@@ -760,7 +764,20 @@ def _registerExperimentDocument(filename, created_by, expid=None,
 
     else:
         logger.debug('processing METS')
-        eid = parseMets(filename, created_by, expid)
+        try:
+            eid = parseMets(filename, created_by, expid)
+        except SAXParseException:
+            fail_message = "Processing METS failed: Document isn't XML, " \
+                " or well formed.<br> (" + filename + ")"
+
+            logger.error(fail_message)
+
+            rs = RegistrationStatus(action=ingest_action,
+                                    status=RegistrationStatus.ERROR,
+                                    message=fail_message,
+                                    experiment=e)
+
+            rs.save()
 
     auth_key = ''
     try:
@@ -777,7 +794,6 @@ def _registerExperimentDocument(filename, created_by, expid=None,
                 # if exist, create ACL
                 if user:
                     logger.debug('registering owner: ' + owner)
-                    e = Experiment.objects.get(pk=eid)
 
                     acl = ExperimentACL(experiment=e,
                                         pluginId=django_user,
@@ -789,7 +805,20 @@ def _registerExperimentDocument(filename, created_by, expid=None,
                                         aclOwnershipType=ExperimentACL.OWNER_OWNED)
                     acl.save()
 
-    return eid
+                else:
+                    fail_message = "No user found for owner: " + \
+                        owner + " and auth: " + auth_key \
+
+                    logger.error(fail_message)
+
+                    rs = RegistrationStatus(action=ingest_action,
+                                            status=RegistrationStatus.WARNING,
+                                            message=fail_message,
+                                            experiment=e)
+
+                    rs.save()
+
+    return e.id
 
 
 # web service
@@ -797,7 +826,14 @@ def register_experiment_ws_xmldata(request):
 
     status = ''
     ingest_action = "Ingest Received"
+    ingest_processing_action = "Ingest Processing"
+
     if request.method == 'POST':  # If the form has been submitted...
+
+        from datetime import datetime
+
+        temp_title = "Ingest Received: " + \
+                     datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
 
         # A form bound to the POST data
         form = RegisterExperimentForm(request.POST, request.FILES)
@@ -819,17 +855,6 @@ def register_experiment_ws_xmldata(request):
             for owner in owners:
                 owner_string = owner_string + owner
                 debug_POST = debug_POST + "owner: " + owner + "<br/>"
-
-            if len(owner_string) == 0:
-                fail_message = "No owners submitted with ingest <br/>" \
-                    "Debug: " + str(debug_POST)
-
-                rs = RegistrationStatus(action=ingest_action,
-                                        status=RegistrationStatus.WARNING,
-                                        message=fail_message,
-                                        )
-
-                rs.save()
 
             user = auth_service.authenticate(request=request,
                                              authMethod=localdb_auth_key)
@@ -859,12 +884,23 @@ def register_experiment_ws_xmldata(request):
                 return return_response_error(request)
 
             e = Experiment(
-                title='Placeholder Title',
+                title=temp_title,
                 approved=True,
                 created_by=user,
                 )
             e.save()
             eid = e.id
+
+            if len(owner_string) == 0:
+                fail_message = "No owners submitted with ingest <br/>" \
+                    "Debug: " + str(debug_POST)
+
+                rs = RegistrationStatus(action=ingest_action,
+                                        status=RegistrationStatus.WARNING,
+                                        message=fail_message,
+                                        experiment=e)
+
+                rs.save()
 
             filename = path.join(e.get_or_create_directory(),
                                  'mets_upload.xml')
@@ -891,8 +927,15 @@ def register_experiment_ws_xmldata(request):
                                             username=username)
 
                 logger.info('=== processing experiment %s: DONE' % eid)
+
+                pass_message = "Ingest Successfully Processed"
+
+                rs = RegistrationStatus(action=ingest_processing_action,
+                                        status=RegistrationStatus.PASS,
+                                        message=pass_message,
+                                        experiment=e)
+                rs.save()
             except:
-                ingest_processing_action = "Ingest Processing"
                 fail_message = "METS metadata ingest failed"
 
                 rs = RegistrationStatus(action=ingest_processing_action,
