@@ -240,8 +240,24 @@ def partners(request):
     c = Context({})
     return HttpResponse(render_response_index(request,
                         'tardis_portal/partners.html', c))
-
-
+''' For admins, see the status of all phases of all ingest attempts'''
+@authz.staff_required
+def registration_status(request):
+    registrationstatuses = RegistrationStatus.objects.exclude(status=3).order_by('-experiment__id', 'id')
+    experiments_status = RegistrationStatus.objects.filter(action="Ingest Received").order_by('-timestamp')
+    
+    # TODO: 
+    # filter out old statuses
+    # sortable columns
+    # colours
+    # make "action" an enumerated type
+    print registrationstatuses
+    c = Context({
+        'registrationstatuses': registrationstatuses,
+        'experiments': experiments_status})
+    return HttpResponse(render_response_search(request, 
+        'tardis_portal/registration_status.html', c))
+        
 def experiment_index(request):
 
     experiments = None

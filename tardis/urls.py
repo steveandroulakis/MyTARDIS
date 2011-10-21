@@ -200,4 +200,8 @@ urlpatterns = patterns(
 
     # Token login
     (r'^token/', include(token_urls)),
+    
+    ### move somewhere better
+    (r'^status/registration$', 'tardis.tardis_portal.views.registration_status'),
+   
 )

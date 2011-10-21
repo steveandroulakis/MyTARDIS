@@ -1,0 +1,63 @@
+{% extends "tardis_portal/portal_template.html" %}
+
+{% block content %}
+<h1>Recent ingests</h1>
+{% regroup registrationstatuses by experiment as experimentlist %}
+<table class="registration_status_overview">
+<tr>
+<th>Experiment</th>
+<th>Activity</th>
+</tr>
+{% for e in experimentlist %}
+<tr>
+	<th ><a href="{{ e.experiment.get_absolute_url}}">{{ e.grouper }}</a></th>
+	<td>
+	<table class="registration_status_table">
+	{% for s in e.list %}
+	<tr class="rs_{{ s.get_status.lower }}">
+	<td class="rs_timestamp">{{ s.timestamp }}</td>
+	<td class="rs_action">{{ s.action }}</td>
+	<td class="rs_message">{{ s.message|safe }}</td>
+	<td class="rs_site">{{ s.site }}</td>
+	</tr>
+	{% endfor %}
+	</table>
+	</td>
+</tr>
+{% endfor %}
+</table>
+{% comment %}
+The following stuff is a straightforward log, may be useful as an alternative view: you see all events chronologically, rather than grouped by experiment.
+
+<h1>Ingest statuses</h1>
+{% for e in experiments %}
+<tr>
+	<td>{{ e.experiment }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<h1>Recent ingests</h1>
+<div >
+<table class="registration_status_table">
+<tr>
+<th>Time</th>
+<th>Phase</th>
+<th>Message</th>
+<th>Site</th><th>Experiment</th>
+{% for registrationstatus in registrationstatuses %}
+<tr class="rs_{{ registrationstatus.get_status.lower }}" >
+	<td>{{ registrationstatus.timestamp }}</td>
+	<td>{{ registrationstatus.action }}</td>
+	<td class="rs_message">{{ registrationstatus.message|safe }}</td>
+	<td>{{ registrationstatus.site }}</td>
+	<td><a href="{{ registration_status.experiment.get_absolute_url }}">{{ registrationstatus.experiment }}</a></td>
+	
+</tr>
+{% endfor %}
+</table>
+</div>
+
+{% endcomment %}
+
+{% endblock content %}

@@ -296,3 +296,21 @@ def delete_permissions_required(f):
     wrap.__doc__ = f.__doc__
     wrap.__name__ = f.__name__
     return wrap
+
+#from http://djangosnippets.org/snippets/1575/
+
+def staff_required(f):
+    """
+    Limit view to users with "staff" membership.
+    
+    Usage:
+    --------------------------------------------------------------------------
+    @staff_only
+    def my_view(request):
+        ...
+    """
+    def _inner(request, *args, **kwargs):
+        if not request.user.is_staff:
+            raise PermissionDenied           
+        return f(request, *args, **kwargs)
+    return _inner

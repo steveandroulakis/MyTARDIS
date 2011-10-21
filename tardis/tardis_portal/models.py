@@ -1029,11 +1029,13 @@ class RegistrationStatus(models.Model):
     PASS = 0
     WARNING = 1
     ERROR = 2
+    SYSTEM = 3
 
     _STATUS_TYPES = (
         (PASS, 'Pass'),
         (WARNING, 'Warning'),
         (ERROR, 'Error'),
+        (SYSTEM, 'System')
     )
 
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -1043,6 +1045,9 @@ class RegistrationStatus(models.Model):
     message = models.TextField(blank=True)
     site = models.CharField(max_length=400, blank=True)
     experiment = models.ForeignKey(Experiment, null=True, blank=True)
+
+    def get_status(self):
+        return self._STATUS_TYPES[self.status][1]
 
     def __unicode__(self):
 

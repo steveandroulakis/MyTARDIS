@@ -861,3 +861,56 @@ div.edit_schema img {
 .token_user {
     color:#AAA;
 }
+
+.registration_status_table {
+    border: 1px solid gray;
+}
+
+.registration_status_overview {
+    border: 1px solid gray;
+}
+
+.registration_status_overview th {
+    border-bottom: 1px dashed gray;
+    width: 5em;
+}
+
+.registration_status_table td {
+    padding: 0.5em;
+    font-size: 90%;
+
+}
+
+.rs_timestamp {
+    width: 12em;
+}
+.rs_action {
+    width: 10em;
+}
+
+/* The part after registration_status_ depends on models.RegistrationStatus.get_status */
+
+.rs_pass {
+    background-color: #cfc
+}
+
+.rs_warning {
+    background-color: #fec
+}
+
+.rs_error {
+    background-color: #faa
+}
+
+.rs_error .rs_message
+ {
+    font-weight: bold;
+}
+
+
+
+.registration_status_table {
+/*    border-collapse:collapse; */
+    border-spacing: 0 1px;
+    
+}
