@@ -258,6 +258,14 @@ def registration_status(request):
     return HttpResponse(render_response_search(request, 
         'tardis_portal/registration_status.html', c))
         
+def integrity_check(request, experiment_id):
+    """Report status of datafiles belonging to experiment, in machine-readable form."""
+    from django.utils import simplejson
+
+    experiment = Experiment.objects.get(pk=experiment_id)
+    return HttpResponse(simplejson.dumps(experiment.get_datafiles_integrity()),
+                        content_type = 'application/javascript; charset=utf8')
+
 def experiment_index(request):
 
     experiments = None

@@ -232,6 +232,29 @@ class Experiment(models.Model):
                     pass
 
         return urls
+    
+    def get_datafiles_integrity(self):
+        """Check whether all datafiles belonging to this experiment actually exist on disk.
+        Return status of each as a dictionary."""
+        
+        import os
+        datafiles = Dataset_File.objects.filter(dataset__experiment__pk=self.pk) 
+    
+        output={'filesok': 0, 'filesmissing': 0}
+        for datafile in datafiles.all():
+            output[datafile.id]={
+                                'url':   datafile.url,
+                                'found': os.path.exists(datafile.get_absolute_filepath()),
+                                'size':  os.path.getsize(datafile.get_absolute_filepath())
+                                }
+                                      
+            if os.path.exists(datafile.get_absolute_filepath()):
+                output['filesok'] = output['filesok'] + 1           
+            else:
+                output['filesmissing'] = output['filesmissing'] + 1
+        
+        return output
+    
 
 
 class ExperimentACL(models.Model):

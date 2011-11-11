@@ -203,5 +203,7 @@ urlpatterns = patterns(
     
     ### move somewhere better
     (r'^status/registration$', 'tardis.tardis_portal.views.registration_status'),
+    
+    (r'^validate/(?P<experiment_id>\d+)$', 'tardis.tardis_portal.views.integrity_check'),
    
 )
