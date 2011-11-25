@@ -233,22 +233,25 @@ class Experiment(models.Model):
 
         return urls
     
+    # needs an authz decorator?
     def get_datafiles_integrity(self):
         """Check whether all datafiles belonging to this experiment actually exist on disk.
         Return status of each as a dictionary."""
         
-        import os
+        from os import path
         datafiles = Dataset_File.objects.filter(dataset__experiment__pk=self.pk) 
     
         output={'filesok': 0, 'filesmissing': 0}
         for datafile in datafiles.all():
+            filename=datafile.get_absolute_filepath()
+            exists=path.exists(filename)
             output[datafile.id]={
                                 'url':   datafile.url,
-                                'found': os.path.exists(datafile.get_absolute_filepath()),
-                                'size':  os.path.getsize(datafile.get_absolute_filepath())
+                                'found': exists,
+                                'size':  path.getsize(filename) if exists else -1
                                 }
                                       
-            if os.path.exists(datafile.get_absolute_filepath()):
+            if exists:
                 output['filesok'] = output['filesok'] + 1           
             else:
                 output['filesmissing'] = output['filesmissing'] + 1
@@ -388,7 +391,7 @@ class Dataset_File(models.Model):
        :class:`tardis.tardis_portal.models.Dataset` the file belongs to.
     :attribute filename: the name of the file, excluding the path.
     :attribute url: the url that the datafile is located at
-    :attribute size: the size of the file.
+    :attribute size: the size of the file (size in METS file takes priority over disk size)
     :attribute protocol: the protocol used to access the file.
     :attribute created_time: time the file was added to tardis
     :attribute modification_time: last modification time of the file
@@ -410,7 +413,9 @@ class Dataset_File(models.Model):
     modification_time = models.DateTimeField(null=True, blank=True)
     mimetype = models.CharField(blank=True, max_length=80)
     md5sum = models.CharField(blank=True, max_length=32)
-
+    transfer_status=models.CharField(blank=True,max_length=50, null=True)
+    transfer_status_timestamp=models.DateTimeField(null=True)
+    
     def getParameterSets(self, schemaType=None):
         """Return datafile parametersets associated with this experiment.
 
@@ -1080,3 +1085,6 @@ class RegistrationStatus(models.Model):
 
         return experiment_id + str(self.timestamp) + " / " + str(self._STATUS_TYPES[self.status][1]) \
                + ": " + self.action
+               
+               
+RegistrationStatus._meta.verbose_name_plural='Registration statuses' # default is "Registration Statuss" (ugh)

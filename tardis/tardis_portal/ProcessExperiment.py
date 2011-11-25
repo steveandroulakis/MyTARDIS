@@ -321,11 +321,14 @@ class ProcessExperiment:
                     if protocol in ['file', 'http', 'https']:
                         protocol = ''
 
+                    from datetime import datetime;
                     dfile = Dataset_File(dataset=d,
                                          filename=filename,
                                          url=url,
                                          size=datafile['size'],
-                                         protocol=protocol)
+                                         protocol=protocol,
+                                         transfer_status='Waiting',
+                                         transfer_status_timestamp=datetime.now())
                     dfile.save()
                     current_df_id = dfile.id
 
@@ -437,11 +440,15 @@ class ProcessExperiment:
                     if protocol in  ['file', 'http', 'https']:
                         protocol = ''
 
+                    from datetime import datetime;
                     dfile = Dataset_File(dataset=d,
                                          filename=filename,
                                          url=url,
                                          size=datafile['size'],
-                                         protocol=protocol)
+                                         protocol=protocol,
+                                         transfer_status='Waiting',
+                                         transfer_status_timestamp=datetime.now()
+                                         )
                     dfile.save()
 
                     current_df_id = dfile.id

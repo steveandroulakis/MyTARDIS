@@ -48,7 +48,7 @@ from django.test.client import Client
 from django.contrib.auth.models import User
 
 from tardis.tardis_portal.models import *
-from tardis.tardis_portal.views import _registerExperimentDocument
+from tardis.tardis_portal.ingest import _registerExperimentDocument
 from tardis.tardis_portal.metsparser import MetsExperimentStructCreator
 from tardis.tardis_portal.metsparser import MetsDataHolder
 from tardis.tardis_portal.auth.localdb_auth import django_user, django_group

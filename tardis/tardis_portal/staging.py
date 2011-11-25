@@ -298,8 +298,10 @@ def add_datafile_to_dataset(dataset, filepath, size):
     urlpath = 'tardis:/' + filepath[len(dataset_path):]
     filename = urlpath.rpartition('/')[2]
 
+    from datetime import datetime
     datafile = Dataset_File(dataset=dataset, filename=filename,
-                            url=urlpath, size=size, protocol='tardis')
+                            url=urlpath, size=size, protocol='tardis', 
+                            transfer_status='Complete',transfer_status_timestamp=datetime.now())
     datafile.save()
 
     return datafile

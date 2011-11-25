@@ -51,21 +51,25 @@ Select: <a class="dataset_selector_all clickable">[All]</a> / <a class="dataset_
     }
   }); 
 </script>
+<!-- select all/none icons -->
 {% if highlighted_dataset_files %}
 <form name="datafile_search_select_form" id="datafile_search_form" method="post" action="">
     <div><label><input type="radio" name="show_datafile_search" value="all" checked>Show all</label></div>  
     <div><label><input type="radio" name="show_datafile_search" value="matches">Search matches only</label></div>  
 </form>
 {% endif %}
+<!-- actual list of datafiles -->
 {% for datafile in dataset.object_list %}
-<li class="datafile{% if datafile.pk in highlighted_dataset_files %} search_match_file{% endif %}">
+<li class="datafile{% if datafile.pk in highlighted_dataset_files %} search_match_file{% endif %} {% if not datafile.exists %} datafile_missing {% endif %}">
 	<input type="checkbox" style="float:left;" class="datafile_checkbox" name="datafile" value="{{datafile.id}}" />
     <span style="float:left;">
 
     <span{% if datafile.pk in highlighted_dataset_files %} style="background-color: #FFFF00"{% endif %}>
-    <a class="filelink" href="{{ datafile.get_download_url }}" target="_blank">{{ datafile.filename }}</a> 
+    <a class="filelink" href="{{ datafile.get_download_url }}" target="_blank">{{ datafile.filename }}</a>
+ 
     </span>
-    {% if datafile.size %}<span style="margin-right: 5px">({{ datafile.size|filesizeformat }})</span>{% endif %}
+    {% if datafile.size %}<span style="margin-right: 5px">(<span class="datafile_size">{{ datafile.size|filesizeformat }}</span>)</span>{% endif %}
+    {% if datafile.transfer_status %} - <i>{{ datafile.transfer_status }} </i> {% endif %}
      </span>
     {% if has_write_permissions and not immutable %}
     <a title="Add" href="{% url tardis.tardis_portal.views.add_datafile_par datafile.id %}"
@@ -81,12 +85,15 @@ Select: <a class="dataset_selector_all clickable">[All]</a> / <a class="dataset_
         Show/Hide
     </a>
     <div style="clear:both;"></div>
-	<ul class="datafile_info" style="display:none;">
+    {% if datafile.warning_message %}
+    <div class="datafile_warning_message">{{ datafile.warning_message }}</div>
+    {% endif %}
+	<ul class="datafile_info" style="display:none;"><!-- placeholder for datafile metadata that will be ajaxed -->
 	</ul>
 </li>
 {% endfor %}
 
-
+<!-- page navigation links -->
 {% if dataset.paginator.num_pages > 1 %}
 <br/>
 <div class="pagination">

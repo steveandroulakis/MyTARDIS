@@ -201,9 +201,8 @@ urlpatterns = patterns(
     # Token login
     (r'^token/', include(token_urls)),
     
-    ### move somewhere better
-    (r'^status/registration$', 'tardis.tardis_portal.views.registration_status'),
-    
     (r'^validate/(?P<experiment_id>\d+)$', 'tardis.tardis_portal.views.integrity_check'),
+    
+    (r'^status/set/(?P<dataset_file_id>\d+)=(?P<new_status>.*)$', 'tardis.tardis_portal.views.set_file_transfer_status'),
    
 )

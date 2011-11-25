@@ -1,0 +1,45 @@
+{% extends "admin/change_list.html" %}
+
+{% block extrahead %}
+<style>
+/* these really should be in a .css file somewhere, but I ran out of clues. */
+.rs_pass {
+    background-color: #cfc
+}
+
+.rs_warning {
+    background-color: #fec
+}
+
+.rs_error {
+    background-color: #faa
+}
+
+.rs_error .rs_message
+ {
+    font-weight: bold;
+}
+
+</style>
+{{ block.super }}
+<script type="text/javascript">
+/* Set each row to be .rs_pass, .rs_warning, .rs_error (green, yellow, red)
+ * Also convert the 'message' field to show its contents as interpreted HTML.
+ */
+(function($) {
+    $(document).ready(function() {
+        $('#result_list tr td:nth-child(4)').each(
+        	function() {
+             $('td,th', $(this).parent('tr')).addClass("rs_" + $(this).text().toLowerCase());
+        	}
+        );
+        $('#result_list tr td:nth-child(6)').each(
+        	function() {
+        		$(this).html($(this).text());
+        	}
+        );
+
+    });
+})(django.jQuery);
+</script>
+{% endblock %}

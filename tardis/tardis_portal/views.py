@@ -38,11 +38,8 @@ views.py
 """
 
 from base64 import b64decode
-import urllib2
-from urllib import urlencode, urlopen
 from os import path
 import logging
-from xml.sax._exceptions import SAXParseException
 
 from django.template import Context
 from django.conf import settings
@@ -57,10 +54,9 @@ from django.core.exceptions import PermissionDenied
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 
-from tardis.tardis_portal.ProcessExperiment import ProcessExperiment
 from tardis.tardis_portal.forms import ExperimentForm, \
     createSearchDatafileForm, createSearchDatafileSelectionForm, \
-    LoginForm, RegisterExperimentForm, createSearchExperimentForm, \
+    LoginForm, createSearchExperimentForm, \
     ChangeGroupPermissionsForm, ChangeUserPermissionsForm, \
     ImportParamsForm, create_parameterset_edit_form, \
     save_datafile_edit_form, create_datafile_add_form,\
@@ -84,7 +80,6 @@ from tardis.tardis_portal.auth import auth_service
 from tardis.tardis_portal.shortcuts import render_response_index, \
     return_response_error, return_response_not_found, \
     return_response_error_message, render_response_search
-from tardis.tardis_portal.metsparser import parseMets
 from tardis.tardis_portal.creativecommonshandler import CreativeCommonsHandler
 
 from haystack.query import SearchQuerySet
@@ -240,21 +235,36 @@ def partners(request):
     c = Context({})
     return HttpResponse(render_response_index(request,
                         'tardis_portal/partners.html', c))
+
 ''' For admins, see the status of all phases of all ingest attempts'''
 @authz.staff_required
 def registration_status(request):
-    registrationstatuses = RegistrationStatus.objects.exclude(status=3).order_by('-experiment__id', 'id')
-    experiments_status = RegistrationStatus.objects.filter(action="Ingest Received").order_by('-timestamp')
-    
+#    registrationstatuses = RegistrationStatus.objects.exclude(status=3).order_by('-experiment__id', 'id')
+    # registrationstatuses will be regrouped by experiment id. However, we intentionally order it
+    # only by timestamp, as this gives a better result for statuses with no experiment id.
+
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
     # TODO: 
-    # filter out old statuses
     # sortable columns
-    # colours
     # make "action" an enumerated type
-    print registrationstatuses
+    
+    registrationstatuses = RegistrationStatus.objects.exclude(status=3).order_by('-timestamp')
+    rs_list = registrationstatuses.all()
+    paginator = Paginator(rs_list, 75)
+
+    page = request.GET.get('page')
+    try:
+        rs = paginator.page(page)
+    except EmptyPage:
+        # If page is out of range (e.g. 9999), deliver last page of results.
+        rs = paginator.page(paginator.num_pages)
+    except: rs=paginator.page(1) # If page is not an integer, deliver first page.
+    
     c = Context({
-        'registrationstatuses': registrationstatuses,
-        'experiments': experiments_status})
+        'registrationstatuses': rs, 
+        'rs': rs#registrationstatuses,
+        })
+    
     return HttpResponse(render_response_search(request, 
         'tardis_portal/registration_status.html', c))
         
@@ -754,304 +764,10 @@ def manage_auth_methods(request):
         return list_auth_methods(request)
 
 
-# TODO removed username from arguments
-@transaction.commit_on_success
-def _registerExperimentDocument(filename, created_by, expid=None,
-                                owners=[], username=None):
-    '''
-    Register the experiment document and return the experiment id.
 
-    :param filename: path of the document to parse (METS or notMETS)
-    :type filename: string
-    :param created_by: a User instance
-    :type created_by: :py:class:`django.contrib.auth.models.User`
-    :param expid: the experiment ID to use
-    :type expid: int
-    :param owners: a list of owners
-    :type owner: list
-    :param username: **UNUSED**
-    :rtype: int
-
-    '''
-
-    ingest_action = "Ingest Processing"
-    e = Experiment.objects.get(pk=expid)
-
-    f = open(filename)
-    firstline = f.readline()
-    f.close()
-
-    if firstline.startswith('<experiment'):
-        logger.debug('processing simple xml')
-        processExperiment = ProcessExperiment()
-        eid = processExperiment.process_simple(filename, created_by, expid)
-
-    else:
-        logger.debug('processing METS')
-        try:
-            eid = parseMets(filename, created_by, expid)
-        except SAXParseException:
-            fail_message = "Processing METS failed: Document isn't XML, " \
-                " or well formed.<br> (" + filename + ")"
-
-            logger.error(fail_message)
-
-            rs = RegistrationStatus(action=ingest_action,
-                                    status=RegistrationStatus.ERROR,
-                                    message=fail_message,
-                                    experiment=e)
-
-            rs.save()
-
-    auth_key = ''
-    try:
-        auth_key = settings.DEFAULT_AUTH
-    except AttributeError:
-        logger.error('no default authentication for experiment ownership set (settings.DEFAULT_AUTH)')
-
-    if auth_key:
-        for owner in owners:
-            # for each PI
-            if owner:
-                user = auth_service.getUser({'pluginname': auth_key,
-                                             'id': owner})
-                # if exist, create ACL
-                if user:
-                    logger.debug('registering owner: ' + owner)
-
-                    acl = ExperimentACL(experiment=e,
-                                        pluginId=django_user,
-                                        entityId=str(user.id),
-                                        canRead=True,
-                                        canWrite=True,
-                                        canDelete=True,
-                                        isOwner=True,
-                                        aclOwnershipType=ExperimentACL.OWNER_OWNED)
-                    acl.save()
-
-                else:
-                    fail_message = "No user found for owner: " + \
-                        owner + " and auth: " + auth_key \
-
-                    logger.error(fail_message)
-
-                    rs = RegistrationStatus(action=ingest_action,
-                                            status=RegistrationStatus.WARNING,
-                                            message=fail_message,
-                                            experiment=e)
-
-                    rs.save()
-
-    return e.id
-
-
-# web service
 def register_experiment_ws_xmldata(request):
-
-    status = ''
-    ingest_action = "Ingest Received"
-    ingest_processing_action = "Ingest Processing"
-
-    if request.method == 'POST':  # If the form has been submitted...
-
-        from datetime import datetime
-
-        temp_title = "Ingest Received: " + \
-                     datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
-
-        # A form bound to the POST data
-        form = RegisterExperimentForm(request.POST, request.FILES)
-        if form.is_valid():  # All validation rules pass
-
-            xmldata = request.FILES['xmldata']
-            xmldata_meta = xmldata.name
-            username = form.cleaned_data['username']
-            originid = form.cleaned_data['originid']
-            from_url = form.cleaned_data['from_url']
-            owners = request.POST.getlist('experiment_owner')
-
-            debug_POST = "username: " + username + "<br/>" \
-                "xmldata: " + xmldata_meta + "<br/>" \
-                "originid: " + originid + "<br/>" \
-                "from_url: " + from_url + "<br/>" \
-
-            owner_string = ""
-            for owner in owners:
-                owner_string = owner_string + owner
-                debug_POST = debug_POST + "owner: " + owner + "<br/>"
-
-            user = auth_service.authenticate(request=request,
-                                             authMethod=localdb_auth_key)
-            if user:
-                if not user.is_active:
-                    fail_message = "Authorisation failure: <br/>" \
-                        "User credentials passed, but user is not active<br/>" \
-                        "Debug: " + str(debug_POST)
-
-                    rs = RegistrationStatus(action=ingest_action,
-                                            status=RegistrationStatus.ERROR,
-                                            message=fail_message,
-                                            )
-
-                    rs.save()
-                    return return_response_error(request)
-            else:
-                fail_message = "Authentication failure: <br/>" \
-                    "User does not exist, or password incorrect.<br/>" \
-                    "Debug: " + str(debug_POST)
-
-                rs = RegistrationStatus(action=ingest_action,
-                                        status=RegistrationStatus.ERROR,
-                                        message=fail_message,
-                                        )
-                rs.save()
-                return return_response_error(request)
-
-            e = Experiment(
-                title=temp_title,
-                approved=True,
-                created_by=user,
-                )
-            e.save()
-            eid = e.id
-
-            if len(owner_string) == 0:
-                fail_message = "No owners submitted with ingest <br/>" \
-                    "Debug: " + str(debug_POST)
-
-                rs = RegistrationStatus(action=ingest_action,
-                                        status=RegistrationStatus.WARNING,
-                                        message=fail_message,
-                                        experiment=e)
-
-                rs.save()
-
-            filename = path.join(e.get_or_create_directory(),
-                                 'mets_upload.xml')
-
-            f = open(filename, 'wb+')
-            for chunk in xmldata.chunks():
-                f.write(chunk)
-            f.close()
-
-            logger.info('=== processing experiment: START')
-            try:
-                pass_message = "Ingest Successfully Received"
-
-                rs = RegistrationStatus(action=ingest_action,
-                                        status=RegistrationStatus.PASS,
-                                        message=pass_message,
-                                        experiment=e)
-                rs.save()
-
-                _registerExperimentDocument(filename=filename,
-                                            created_by=user,
-                                            expid=eid,
-                                            owners=owners,
-                                            username=username)
-
-                logger.info('=== processing experiment %s: DONE' % eid)
-
-                pass_message = "Ingest Successfully Processed"
-
-                rs = RegistrationStatus(action=ingest_processing_action,
-                                        status=RegistrationStatus.PASS,
-                                        message=pass_message,
-                                        experiment=e)
-                rs.save()
-            except:
-                fail_message = "METS metadata ingest failed"
-
-                rs = RegistrationStatus(action=ingest_processing_action,
-                                        status=RegistrationStatus.ERROR,
-                                        message=fail_message,
-                                        experiment=e)
-                rs.save()
-
-                logger.exception('=== processing experiment %s: FAILED!' % eid)
-                return return_response_error(request)
-
-            if from_url:
-                transfer_action = "File Transfer Request"
-                logger.debug('=== sending file request')
-                try:
-                    file_transfer_url = from_url + '/file_transfer/'
-                    data = urlencode({
-                            'originid': str(originid),
-                            'eid': str(eid),
-                            'site_settings_url':
-                                request.build_absolute_uri(
-                                    '/site-settings.xml/'),
-                            })
-                    transfer_result = urlopen(file_transfer_url, data)
-                    logger.info('=== file-transfer request submitted to %s'
-                                % file_transfer_url)
-
-                    if not transfer_result.code == 200:
-                        fail_message = "Contacting " + file_transfer_url +  \
-                            " returned HTTP code: " + \
-                            str(transfer_result.code)
-
-                        logger.error(fail_message)
-
-                        rs = RegistrationStatus(action=transfer_action,
-                                                status=RegistrationStatus.ERROR,
-                                                message=fail_message,
-                                                experiment=e)
-                        rs.save()
-                    else:
-                        pass_message = "Contacting " + file_transfer_url +  \
-                            " returned HTTP code: " + \
-                            str(transfer_result.code)
-
-                        logger.info(pass_message)
-
-                        rs = RegistrationStatus(action=transfer_action,
-                                                status=RegistrationStatus.PASS,
-                                                message=pass_message,
-                                                experiment=e)
-                        rs.save()
-
-                except:
-                    fail_message = "Contacting " + file_transfer_url +  \
-                        " failed with this data: <br/>" + \
-                        str(data)
-
-                    rs = RegistrationStatus(action=transfer_action,
-                                            status=RegistrationStatus.ERROR,
-                                            message=fail_message,
-                                            experiment=e)
-                    rs.save()
-                    logger.exception('=== file-transfer request to %s FAILED!'
-                                     % file_transfer_url)
-
-            response = HttpResponse(str(eid), status=200)
-            response['Location'] = request.build_absolute_uri(
-                '/experiment/view/' + str(eid))
-            return response
-        else:
-
-            ingest_action = "Ingest Received"
-            fail_message = "Form validation failure: <br/>" \
-                "Form Errors: " + str(form.errors) + "<br/>" \
-
-            rs = RegistrationStatus(action=ingest_action,
-                                    status=RegistrationStatus.ERROR,
-                                    message=fail_message,
-                                    )
-
-            rs.save()
-    else:
-        form = RegisterExperimentForm()  # An unbound form
-
-    c = Context({
-        'form': form,
-        'status': status,
-        'subtitle': 'Register Experiment',
-        'searchDatafileSelectionForm': getNewSearchDatafileSelectionForm()})
-    return HttpResponse(render_response_index(request,
-                        'tardis_portal/register_experiment.html', c))
-
+    import tardis.tardis_portal.ingest
+    return tardis.tardis_portal.ingest.register_experiment_ws_xmldata(request)
 
 @never_cache
 @authz.datafile_access_required
@@ -1088,6 +804,14 @@ def retrieve_datafile_list(request, dataset_id):
         dataset_results = \
             dataset_results.filter(url__icontains=filename_search)
 
+    # enrich the dataset information with details about files on disk etc
+    for ds in dataset_results:
+        ds.exists = path.exists(ds.get_absolute_filepath())
+        if ds.exists:
+            ds.filesize_checked = path.getsize(ds.get_absolute_filepath())
+            if ds.filesize_checked != ds.size:
+                ds.warning_message = "Warning: Size on disk ({0} bytes) differs from expected size ({1} bytes).".format(ds.filesize_checked, ds.size)
+    
     # pagination was removed by someone in the interface but not here.
     # need to fix.
     pgresults = 500
@@ -2831,3 +2555,14 @@ def token_login(request, token):
     login(request, user)
     experiment = Experiment.objects.get(token__token=token)
     return HttpResponseRedirect(experiment.get_absolute_url())
+
+### a temporary hack only for testing
+def set_file_transfer_status(request, dataset_file_id, new_status):
+    logger.debug("%s %s" % (dataset_file_id, new_status))
+    from datetime import datetime
+    df=Dataset_File.objects.get(pk=dataset_file_id)
+    df.transfer_status=new_status
+    df.transfer_status_timestamp=datetime.now()
+    df.save()
+    logger.debug("Saved datafile transfer status")
+    return HttpResponse('', mimetype='text/html');

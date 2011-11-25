@@ -677,12 +677,16 @@ class MetsMetadataInfoHandler(ContentHandler):
                                 if not self.metsObject.size:
                                     size = 0
 
+                                from datetime import datetime
                                 self.modelDatafile = models.Dataset_File(
                                     dataset=thisFilesDataset,
                                     filename=self.metsObject.name,
                                     url=self.metsObject.url,
                                     size=size,
-                                    protocol=self.metsObject.url.split('://')[0])
+                                    protocol=self.metsObject.url.split('://')[0],
+                                    transfer_status='Waiting',
+                                    transfer_status_timestamp=datetime.now()
+                                    )
 
                                 self.modelDatafile.save()
                             else:

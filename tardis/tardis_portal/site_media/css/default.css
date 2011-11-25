@@ -862,9 +862,34 @@ div.edit_schema img {
     color:#AAA;
 }
 
+.datafile_missing .filelink {
+	text-decoration:line-through;
+	color: #444;
+}
+
+.datafile_missing .datafile_size:before {
+	content:"Expected size: ";
+}
+
+.datafile_warning_message {
+	color: #440;
+	background-color: #cc9;
+	font-size: 80%;
+	padding: 0.3em;
+	/* border: 1px solid #440; */
+}
+
 .registration_status_table {
     border: 1px solid gray;
+    border-spacing: 0 1px;
+	width: 100%;
 }
+
+.registration_status_table {
+
+    
+}
+
 
 .registration_status_overview {
     border: 1px solid gray;
@@ -909,8 +934,14 @@ div.edit_schema img {
 
 
 
-.registration_status_table {
-/*    border-collapse:collapse; */
-    border-spacing: 0 1px;
-    
+
+.registration_status_table .traceback {
+    font-family: monospace;
+    font-weight: normal;
+    padding: 0.5em 2em;
+    font-size: 90%;
+}
+
+.pagination {
+	margin-bottom: 1em;
 }

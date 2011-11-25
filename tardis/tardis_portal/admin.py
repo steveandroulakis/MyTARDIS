@@ -87,6 +87,31 @@ class ExperimentAclAdmin(admin.ModelAdmin):
         '__unicode__', 'pluginId', 'entityId', 'canRead',
         'canWrite', 'canDelete', 'isOwner'
     ]
+    
+class RegistrationStatusAdmin(admin.ModelAdmin):
+    ''' Display status of ingests and transfers color-coded.'''
+    def eid(self, obj):
+            return obj.experiment.id
+        
+    def title(self,obj):
+            return obj.experiment.title
+    eid.short_description='Experiment'
+    search_fields =['experiment__id', 'action', 'message', 'experiment__title']
+    list_display = (
+                    'title', 'action', 'status', 'timestamp','message', 'site',
+                    )
+
+    readonly_fields = (
+                    'title', 'action', 'status', 'timestamp','message', 'site',
+                    )
+    
+    list_filter = ['status','action', 'experiment__institution_name', 'experiment__author_experiment__author']
+    ordering=('-timestamp',)
+    '''class Media:
+        css = {
+            "all": ("default.css",)
+        }
+    '''
 
 
 admin.site.register(models.Experiment, ExperimentAdmin)
@@ -106,5 +131,5 @@ admin.site.register(models.ExperimentParameterSet, ExperimentParameterSetAdmin)
 admin.site.register(models.GroupAdmin)
 admin.site.register(models.UserAuthentication)
 admin.site.register(models.ExperimentACL, ExperimentAclAdmin)
-admin.site.register(models.RegistrationStatus)
+admin.site.register(models.RegistrationStatus, RegistrationStatusAdmin)
 # admin.site.register(MigrationHistory)
