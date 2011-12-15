@@ -450,7 +450,8 @@ class Dataset_File(models.Model):
             # if we can't find the file under the regular scheme
             # then try a tardis2-style setup
             else:
-                self.protocol = 'tardis2'
+                relative_path = join(str(self.dataset.id),
+                                    self.url.partition('://')[2])
         if self.protocol == 'tardis2':
             relative_path = join(str(self.dataset.id),
                                 self.url.partition('://')[2])
@@ -482,7 +483,10 @@ class Dataset_File(models.Model):
             # if we can't find the file under the regular scheme
             # then try a tardis2-style setup
             else:
-                self.protocol = 'tardis2'
+                return abspath(join(FILE_STORE_PATH,
+                                    str(self.dataset.experiment.id),
+                                    str(self.dataset.id),
+                                    self.url.partition('://')[2]))
         if self.protocol == 'tardis2':
             try:
                 FILE_STORE_PATH = settings.FILE_STORE_PATH
