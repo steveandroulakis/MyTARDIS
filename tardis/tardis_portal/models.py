@@ -218,7 +218,7 @@ class Experiment(models.Model):
             .values('protocol').distinct()
         for key_value in distinct:
             protocol = key_value['protocol']
-            if protocol in ['', 'tardis', 'file', 'http', 'https']:
+            if protocol in ['', 'tardis', 'tardis2', 'file', 'http', 'https']:
                 view = 'tardis.tardis_portal.download.download_experiment'
                 if not '' in urls:
                     urls[''] = reverse(view, kwargs=kwargs)
@@ -417,7 +417,7 @@ class Dataset_File(models.Model):
         kwargs = {'datafile_id': self.id}
 
         # these are the internally known protocols
-        protocols = ['', 'tardis', 'file', 'http', 'https', 'ftp']
+        protocols = ['', 'tardis', 'tardis2', 'file', 'http', 'https', 'ftp']
         if self.protocol in protocols:
             view = 'tardis.tardis_portal.download.download_datafile'
 
@@ -435,10 +435,26 @@ class Dataset_File(models.Model):
         else:
             return ''
 
+    # get filepath relative to the experiment id /..
     def get_relative_filepath(self):
+        from os.path import join, exists
+
+        # tardis protocol supports both expid/dsid/datafile
+        # and expid/datafile
         if self.protocol == '' or self.protocol == 'tardis':
-            from os.path import abspath, join
-            return abspath(join(self.url.partition('://')[2]))
+            relative_path = self.url.partition('://')[2]
+            if exists(join(settings.FILE_STORE_PATH,
+                            str(self.dataset.experiment.id),
+                            str(relative_path))):
+                return relative_path
+            # if we can't find the file under the regular scheme
+            # then try a tardis2-style setup
+            else:
+                self.protocol = 'tardis2'
+        if self.protocol == 'tardis2':
+            relative_path = join(str(self.dataset.id),
+                                self.url.partition('://')[2])
+            return relative_path
         elif self.protocol == 'staging':
             return self.url
         # file should refer to an absolute location
@@ -449,14 +465,30 @@ class Dataset_File(models.Model):
         # check for empty protocol field (historical reason) or
         # 'tardis' which indicates a location within the tardis file
         # store
+        from django.conf import settings
+        from os.path import abspath, join, exists
+
         if self.protocol == '' or self.protocol == 'tardis':
-            from django.conf import settings
             try:
                 FILE_STORE_PATH = settings.FILE_STORE_PATH
             except AttributeError:
                 return ''
 
-            from os.path import abspath, join
+            absolute_path = abspath(join(settings.FILE_STORE_PATH,
+                                str(self.dataset.experiment.id),
+                                self.url.partition('://')[2]))
+            if exists(absolute_path):
+                return absolute_path
+            # if we can't find the file under the regular scheme
+            # then try a tardis2-style setup
+            else:
+                self.protocol = 'tardis2'
+        if self.protocol == 'tardis2':
+            try:
+                FILE_STORE_PATH = settings.FILE_STORE_PATH
+            except AttributeError:
+                return ''
+
             return abspath(join(FILE_STORE_PATH,
                                 str(self.dataset.experiment.id),
                                 str(self.dataset.id),
@@ -469,24 +501,6 @@ class Dataset_File(models.Model):
             return self.url.partition('://')[2]
 
         # ok, it doesn't look like the file is stored locally
-        else:
-            return ''
-
-    def get_absolute_filepath_old(self):  # temp quickfix!
-        # check for empty protocol field (historical reason) or
-        # 'tardis' which indicates a location within the tardis file
-        # store
-        if self.protocol == '' or self.protocol == 'tardis':
-            from django.conf import settings
-            try:
-                FILE_STORE_PATH = settings.FILE_STORE_PATH
-            except AttributeError:
-                return ''
-
-            from os.path import abspath, join
-            return abspath(join(FILE_STORE_PATH,
-                                str(self.dataset.experiment.id),
-                                self.url.partition('://')[2]))
         else:
             return ''
 
@@ -962,13 +976,13 @@ class Token(models.Model):
         tomorrow = today + dt.timedelta(1)
         tomorrow_4am = dt.datetime(tomorrow.year, tomorrow.month, tomorrow.day, 4)
         return tomorrow_4am
-        
+
     def get_session_expiry(self):
         '''
             A token login should expire at the earlier of
             a) tomorrow at 4am
             b) the (end of) the token's expiry date
-            
+
             It is the responsibility of token_auth to set the session expiry
         '''
         if self.is_expired():
