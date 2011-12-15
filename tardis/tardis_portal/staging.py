@@ -176,8 +176,8 @@ def stage_file(datafile):
         relpath = relpath + path.sep
 
     datafile.filename = filename
-    datafile.url = "tardis://" + relpath + filename
-    datafile.protocol = "tardis"
+    datafile.url = "tardis2://" + relpath + filename
+    datafile.protocol = "tardis2"
     datafile.size = path.getsize(datafile.get_absolute_filepath())
     datafile.save()
 
@@ -212,7 +212,7 @@ def calculate_relative_path(protocol, filepath):
         staging = settings.STAGING_PATH
         rpath = filepath[len(staging)+1:]
         return rpath.partition("/")[2]
-    elif protocol == "tardis":
+    elif protocol == "tardis2":
         staging = settings.STAGING_PATH
         rpath = filepath[len(staging)-1:]
         return rpath.lstrip(path.sep)
@@ -295,11 +295,11 @@ def add_datafile_to_dataset(dataset, filepath, size):
                                 str(dataset.experiment.id))
 
     dataset_path = path.join(experiment_path, str(dataset.id))
-    urlpath = 'tardis:/' + filepath[len(dataset_path):]
+    urlpath = 'tardis2:/' + filepath[len(dataset_path):]
     filename = urlpath.rpartition('/')[2]
 
     datafile = Dataset_File(dataset=dataset, filename=filename,
-                            url=urlpath, size=size, protocol='tardis')
+                            url=urlpath, size=size, protocol='tardis2')
     datafile.save()
 
     return datafile

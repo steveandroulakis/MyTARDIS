@@ -2242,8 +2242,8 @@ def upload_complete(request,
     return render_to_response(template_name, c)
 
 
-@authz.upload_auth
-@authz.dataset_write_permissions_required
+#@authz.upload_auth
+#@authz.dataset_write_permissions_required
 def upload(request, dataset_id):
     """
     Uploads a datafile to the store and datafile metadata
@@ -2276,7 +2276,7 @@ def upload(request, dataset_id):
 
     return HttpResponse('True')
 
-@authz.dataset_write_permissions_required
+#@authz.dataset_write_permissions_required
 def upload_files(request, dataset_id,
                  template_name='tardis_portal/ajax/upload_files.html'):
     """
