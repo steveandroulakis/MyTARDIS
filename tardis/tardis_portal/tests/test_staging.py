@@ -90,7 +90,7 @@ class StagingFiles(TestCase):
                                      1234)
         self.assertEqual(df.size, 1234)
         self.assertEqual(df.filename, 'file')
-        self.assertEqual(df.url, "tardis://file")
+        self.assertEqual(df.url, "tardis2://file")
 
 
 class TraverseTestCase(TestCase):
@@ -156,7 +156,7 @@ class TestPathResolution(TestCase):
         for p in self.paths:
             ap = path.join(settings.FILE_STORE_PATH,
                             p)
-            sp = staging.calculate_relative_path('tardis',
+            sp = staging.calculate_relative_path('tardis2',
                                                ap)
             self.assertEqual(sp, p)
 
