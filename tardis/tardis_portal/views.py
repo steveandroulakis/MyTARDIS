@@ -865,7 +865,7 @@ def register_experiment_ws_xmldata(request):
     return tardis.tardis_portal.ingest.register_experiment_ws_xmldata(request)
 
 # TODO this is the master version
-def register_experiment_ws_xmldata(request):
+def ___master_register_experiment_ws_xmldata(request):
 # web service
 
     status = ''
