@@ -84,7 +84,6 @@ from tardis.tardis_portal.shortcuts import render_response_index, \
     return_response_error, return_response_not_found, \
     return_response_error_message, render_response_search
 from tardis.tardis_portal.creativecommonshandler import CreativeCommonsHandler
-from tardis.tardis_portal.hacks import oracle_dbops_hack
 
 from haystack.views import SearchView
 from haystack.query import SearchQuerySet
@@ -1087,7 +1086,6 @@ def control_panel(request):
                         'tardis_portal/control_panel.html', c))
 
 
-@oracle_dbops_hack
 def search_experiment(request):
     """Either show the search experiment form or the result of the search
     experiment query.
@@ -1675,12 +1673,9 @@ def retrieve_user_list(request):
 
     q_tokenuser = Q(username=settings.TOKEN_USERNAME)
     users_query = User.objects.exclude(q_tokenuser).filter(q).distinct().select_related('userprofile')
+    users_query = users_query[0:limit]
 
-    # HACK FOR ORACLE - QUERY GENERATED DOES NOT WORK WITH LIMIT SO USING ITERATOR INSTEAD
-    from itertools import islice
-    first_n_users = list(islice(users_query, limit))
-
-    user_auths = list(UserAuthentication.objects.filter(userProfile__user__in=first_n_users))
+    user_auths = list(UserAuthentication.objects.filter(userProfile__user__in=users_query))
     auth_methods = dict( (ap[0], ap[1]) for ap in settings.AUTH_PROVIDERS)
     """
     users = [ {
