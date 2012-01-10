@@ -88,6 +88,7 @@ from xml.sax import make_parser
 
 from tardis.tardis_portal import metsstruct
 from tardis.tardis_portal import models
+from tardis.tardis_portal.metshandler import store_metadata_value
 
 from django.conf import settings
 from tardis.tardis_portal.models import RegistrationStatus
@@ -603,19 +604,19 @@ class MetsMetadataInfoHandler(ContentHandler):
                                     experiment=self.modelExperiment)
                                 parameterSet.save()
 
-                                self._checkValidParameters(schema,
-                                                    self.tempMetadataHolder,
-                                                    parameterNames)
+                                #TODO check - this was in ruggedisation branch
+                                #self._checkValidParameters(schema,
+                                #                    self.tempMetadataHolder,
+                                #                    parameterNames)
 
                                 # now let's process the experiment parameters
                                 for parameterName in parameterNames:
                                     if parameterName.name in \
                                             self.tempMetadataHolder:
-                                        parameterValue = self.tempMetadataHolder[
+                                        parameterValues = self.tempMetadataHolder[
                                             parameterName.name]
-                                        if parameterValue != '':
-                                            self._saveParameter('ExperimentParameter',
-                                                parameterName, parameterValue,
+                                        self._saveParameters('ExperimentParameter',
+                                                parameterName, parameterValues,
                                                 parameterSet)
 
                                 createParamSetFlag['experiment'] = False
@@ -638,19 +639,19 @@ class MetsMetadataInfoHandler(ContentHandler):
 
                                 datasetParameterSet.save()
 
-                                self._checkValidParameters(schema,
-                                                    self.tempMetadataHolder,
-                                                    parameterNames)
+                                #TODO check, maybe uncomment
+								#self._checkValidParameters(schema,
+                                #                    self.tempMetadataHolder,
+                                #                    parameterNames)
 
                                 # now let's process the dataset parameters
                                 for parameterName in parameterNames:
                                     if parameterName.name in \
                                             self.tempMetadataHolder:
-                                        parameterValue = self.tempMetadataHolder[
+                                        parameterValues = self.tempMetadataHolder[
                                             parameterName.name]
-                                        if parameterValue != '':
-                                            self._saveParameter('DatasetParameter',
-                                                parameterName, parameterValue,
+                                        self._saveParameters('DatasetParameter',
+                                                parameterName, parameterValues,
                                                 datasetParameterSet)
 
                                 # disable creation for the next visit
@@ -715,11 +716,10 @@ class MetsMetadataInfoHandler(ContentHandler):
                                 for parameterName in parameterNames:
                                     if parameterName.name in \
                                             self.tempMetadataHolder:
-                                        parameterValue = self.tempMetadataHolder[
+                                        parameterValues = self.tempMetadataHolder[
                                             parameterName.name]
-                                        if parameterValue != '':
-                                            self._saveParameter('DatafileParameter',
-                                                parameterName, parameterValue,
+                                        self._saveParameters('DatafileParameter',
+                                                parameterName, parameterValues,
                                                 datafileParameterSet)
                                 createParamSetFlag['datafile'] = False
 
@@ -751,8 +751,8 @@ class MetsMetadataInfoHandler(ContentHandler):
             # processed
             self.parameterName = None
 
-    def _saveParameter(self, parameterTypeClass, parameterName,
-                       parameterValue, parameterSet):
+    def _saveParameters(self, parameterTypeClass, parameterName,
+                       parameterValues, parameterSet):
         '''Save the metadata field in the database.
 
         Reference:
@@ -761,6 +761,26 @@ class MetsMetadataInfoHandler(ContentHandler):
         '''
         #logger.debug('saving parameter %s: %s' %
         #    (parameterName, parameterValue))
+        for parameterValue in parameterValues:
+            if parameterValue == '':
+                continue
+            if parameterName.isNumeric():
+                parameter = \
+                    getattr(models, parameterTypeClass)(
+                    parameterset=parameterSet,
+                    name=parameterName,
+                    string_value=None,
+                    numerical_value=float(parameterValue))
+            else:
+                parameter = \
+                    getattr(models, parameterTypeClass)(
+                    parameterset=parameterSet,
+                    name=parameterName,
+                    string_value=parameterValue,
+                    numerical_value=None)
+            parameter.save()
+        # TODO merge in this error handling stuff: 
+        '''
         if parameterName.isNumeric():
             try:
                 parameter = \
@@ -786,7 +806,7 @@ class MetsMetadataInfoHandler(ContentHandler):
                                         experiment=self.modelExperiment)
 
                 rs.save()
-
+        '''
         else:
             parameter = \
                 getattr(models, parameterTypeClass)(
@@ -866,8 +886,9 @@ class MetsMetadataInfoHandler(ContentHandler):
 
         elif chars.strip() != '' and self.parameterName is not None and \
                 self.processMetadata:
-            # save the parameter value in the temporary metadata dictionary
-            self.tempMetadataHolder[self.parameterName] = chars
+            # save the parameter values in the temporary metadata dictionary
+            store_metadata_value(self.tempMetadataHolder,
+                                 self.parameterName, chars)
 
 
 def _getAttrValue(attrs, attrName):
