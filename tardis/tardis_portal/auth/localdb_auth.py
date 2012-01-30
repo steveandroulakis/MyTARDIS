@@ -46,7 +46,12 @@ class DjangoAuthBackend(AuthProvider):
         try:
             user = User.objects.get(username=user_id)
         except User.DoesNotExist:
-            user = None
+            # the following exists because the Australian
+            # Synchrotron sends user emails, not user ids
+            try:
+                user = User.objects.get(email=user_id)
+            except User.DoesNotExist:
+                user = None
         return user
 
 

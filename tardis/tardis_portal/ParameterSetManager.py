@@ -41,6 +41,8 @@ class ParameterSetManager(object):
           metadata, will be tested for completeness and copied into
           new task if complete
         :type dataset: Dataset
+        :param schema: Schema namespace
+        :type schema: string
         """
 
         if parameterset:
@@ -158,7 +160,7 @@ class ParameterSetManager(object):
         if param.name.isNumeric():
             param.numerical_value = float(value)
         else:
-            param.string_value = str(value)
+            param.string_value = unicode(value)
         param.save()
         return param.id
 
@@ -171,7 +173,7 @@ class ParameterSetManager(object):
         if param.name.isNumeric():
             param.numerical_value = float(value)
         else:
-            param.string_value = str(value)
+            param.string_value = unicode(value)
         param.save()
         return param.id
 

@@ -1,4 +1,4 @@
-from os import path
+from os import listdir, path
 import logging
 
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
@@ -39,10 +39,15 @@ STATIC_DOC_ROOT = path.join(path.dirname(__file__),
 
 MEDIA_ROOT = STATIC_DOC_ROOT
 
-MEDIA_URL = '/site_media/'
+MEDIA_URL = '/site_media'
+STATIC_URL = '/static'
 
-ADMIN_MEDIA_STATIC_DOC_ROOT = path.join(path.dirname(__file__),
-                                        '../parts/django/django/contrib/admin/media/').replace('\\', '/')
+def get_admin_media_path():
+    import pkgutil
+    package = pkgutil.get_loader("django.contrib.admin")
+    return path.join(package.filename, 'media')
+
+ADMIN_MEDIA_STATIC_DOC_ROOT = get_admin_media_path()
 
 
 AUTH_PROVIDERS = (('localdb', 'Local DB',
@@ -71,20 +76,19 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'tardis.tardis_portal.auth.AuthorizationMiddleware',
     'tardis.tardis_portal.logging_middleware.LoggingMiddleware',
-    'tardis.tardis_portal.minidetector.Middleware',
     'django.middleware.transaction.TransactionMiddleware'
 )
 
 TARDIS_APP_ROOT = 'tardis.apps'
-TARDIS_APPS = ('equipment',)
-#TARDIS_APPS = ()
 
-if TARDIS_APPS:
-    apps = tuple(["%s.%s" % (TARDIS_APP_ROOT, app) for app in TARDIS_APPS])
-else:
-    apps = ()
+def get_all_tardis_apps():
+    tardis_app_dir = TARDIS_APP_ROOT.replace('.', path.sep)
+    names = filter(path.isdir, \
+                   map(lambda name: tardis_app_dir+'/'+name,
+                       listdir(tardis_app_dir)))
+    return sorted(map(lambda name: name.replace(path.sep, '.') , names))
 
-INSTALLED_APPS = (
+INSTALLED_APPS = get_all_tardis_apps() + [
         'django.contrib.auth',
         'django.contrib.contenttypes',
         'django.contrib.sessions',
@@ -97,8 +101,7 @@ INSTALLED_APPS = (
         'registration',
         'django_nose',
         'haystack',
-
-) + apps
+]
 
 # LDAP configuration
 LDAP_USE_TLS = False
@@ -124,8 +127,8 @@ MODULE_LOG_FILENAME = 'tardis.log'
 SYSTEM_LOG_MAXBYTES = 0
 MODULE_LOG_MAXBYTES = 0
 
-UPLOADIFY_PATH = '%s%s' % (MEDIA_URL, 'js/uploadify/')
-UPLOADIFY_UPLOAD_PATH = '%s%s' % (MEDIA_URL, 'uploads/')
+UPLOADIFY_PATH = '%s/%s' % (STATIC_URL, 'js/uploadify/')
+UPLOADIFY_UPLOAD_PATH = '%s/%s' % (MEDIA_URL, 'uploads/')
 
 DEFAULT_INSTITUTION = "Monash University"
 
@@ -149,12 +152,12 @@ OAI_DOCS_PATH = 'tardis/tardis_portal/tests/rifcs/'
 RIFCS_TEMPLATE_DIR = 'tardis/tardis_portal/tests/rifcs/'
 RELATED_INFO_SCHEMA_NAMESPACE = 'http://www.tardis.edu.au/schemas/related_info/2011/11/10'
 
-DOI_ENABLE = True
+DOI_ENABLE = False
 DOI_XML_PROVIDER = 'tardis.tardis_portal.ands_doi.DOIXMLProvider'
 #DOI_TEMPLATE_DIR = path.join(TARDIS_DIR, 'tardis_portal/templates/tardis_portal/doi/')
 DOI_TEMPLATE_DIR = path.join('tardis_portal/doi/')
 DOI_APP_ID = ''
-DOI_NAMESPACE = 'http://www.doi.com'
+DOI_NAMESPACE = 'http://www.tardis.edu.au/schemas/doi/2011/12/07'
 DOI_MINT_URL = 'https://services.ands.org.au/home/dois/doi_mint.php'
-DOI_ACCESS_URL = "http://dx.doi.org/"
 DOI_RELATED_INFO_ENABLE = False
+DOI_BASE_URL='http://mytardis.example.com'
