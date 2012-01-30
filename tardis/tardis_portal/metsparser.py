@@ -780,7 +780,6 @@ class MetsMetadataInfoHandler(ContentHandler):
                     numerical_value=None)
             parameter.save()
         # TODO merge in this error handling stuff: 
-        '''
         if parameterName.isNumeric():
             try:
                 parameter = \
@@ -806,7 +805,6 @@ class MetsMetadataInfoHandler(ContentHandler):
                                         experiment=self.modelExperiment)
 
                 rs.save()
-        '''
         else:
             parameter = \
                 getattr(models, parameterTypeClass)(

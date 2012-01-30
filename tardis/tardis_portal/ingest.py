@@ -80,8 +80,9 @@ def _registerExperimentDocument(filename, created_by, expid=None,
         for owner in owners:
             # for each PI
             if owner:
-                user = auth_service.getUser({'pluginname': auth_key,
-                                             'id': owner})
+                user = auth_service.getUser(auth_key,
+                                             owner,
+                                             force_user_create=True)
                 # if exist, create ACL
                 if user:
                     logger.debug('registering owner: ' + owner)
@@ -107,7 +108,7 @@ def _registerExperimentDocument(filename, created_by, expid=None,
 
 
 def send_retry_response(request, form, status):
-    '''Returns the form te be filled out again'''
+    '''Returns the form to be filled out again'''
 
     c = Context({
         'form': form,
