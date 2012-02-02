@@ -860,7 +860,7 @@ class DatafileParameter(models.Model):
 
     parameterset = models.ForeignKey(DatafileParameterSet)
     name = models.ForeignKey(ParameterName)
-    string_value = models.TextField(null=True, blank=True, db_index=True)
+    string_value = models.CharField(null=True, blank=True, db_index=True, max_length=255)
     numerical_value = models.FloatField(null=True, blank=True, db_index=True)
     datetime_value = models.DateTimeField(null=True, blank=True, db_index=True)
     objects = OracleSafeManager()
@@ -882,7 +882,7 @@ class DatasetParameter(models.Model):
 
     parameterset = models.ForeignKey(DatasetParameterSet)
     name = models.ForeignKey(ParameterName)
-    string_value = models.TextField(null=True, blank=True, db_index=True)
+    string_value = models.CharField(null=True, blank=True, db_index=True, max_length=255)
     numerical_value = models.FloatField(null=True, blank=True, db_index=True)
     datetime_value = models.DateTimeField(null=True, blank=True, db_index=True)
     objects = OracleSafeManager()
@@ -903,7 +903,7 @@ class DatasetParameter(models.Model):
 class ExperimentParameter(models.Model):
     parameterset = models.ForeignKey(ExperimentParameterSet)
     name = models.ForeignKey(ParameterName)
-    string_value = models.TextField(null=True, blank=True, db_index=True)
+    string_value = models.CharField(null=True, blank=True, db_index=True, max_length=255)
     numerical_value = models.FloatField(null=True, blank=True, db_index=True)
     datetime_value = models.DateTimeField(null=True, blank=True, db_index=True)
     objects = OracleSafeManager()

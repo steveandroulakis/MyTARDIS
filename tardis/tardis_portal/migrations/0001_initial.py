@@ -160,7 +160,7 @@ class Migration(SchemaMigration):
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
             ('parameterset', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['tardis_portal.DatafileParameterSet'])),
             ('name', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['tardis_portal.ParameterName'])),
-            ('string_value', self.gf('django.db.models.fields.TextField')(null=True, blank=True)),
+            ('string_value', self.gf('django.db.models.fields.CharField')(null=True, blank=True, max_length=255)),
             ('numerical_value', self.gf('django.db.models.fields.FloatField')(null=True, blank=True)),
             ('datetime_value', self.gf('django.db.models.fields.DateTimeField')(null=True, blank=True)),
         ))
@@ -171,7 +171,7 @@ class Migration(SchemaMigration):
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
             ('parameterset', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['tardis_portal.DatasetParameterSet'])),
             ('name', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['tardis_portal.ParameterName'])),
-            ('string_value', self.gf('django.db.models.fields.TextField')(null=True, blank=True)),
+            ('string_value', self.gf('django.db.models.fields.CharField')(null=True, blank=True, max_length=255)),
             ('numerical_value', self.gf('django.db.models.fields.FloatField')(null=True, blank=True)),
             ('datetime_value', self.gf('django.db.models.fields.DateTimeField')(null=True, blank=True)),
         ))
@@ -182,7 +182,7 @@ class Migration(SchemaMigration):
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
             ('parameterset', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['tardis_portal.ExperimentParameterSet'])),
             ('name', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['tardis_portal.ParameterName'])),
-            ('string_value', self.gf('django.db.models.fields.TextField')(null=True, blank=True)),
+            ('string_value', self.gf('django.db.models.fields.CharField')(null=True, blank=True, max_length=255)),
             ('numerical_value', self.gf('django.db.models.fields.FloatField')(null=True, blank=True)),
             ('datetime_value', self.gf('django.db.models.fields.DateTimeField')(null=True, blank=True)),
         ))
@@ -297,7 +297,7 @@ class Migration(SchemaMigration):
             'name': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['tardis_portal.ParameterName']"}),
             'numerical_value': ('django.db.models.fields.FloatField', [], {'null': 'True', 'blank': 'True'}),
             'parameterset': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['tardis_portal.DatafileParameterSet']"}),
-            'string_value': ('django.db.models.fields.TextField', [], {'null': 'True', 'blank': 'True'})
+            'string_value': ('django.db.models.fields.CharField', [], {'null': 'True', 'blank': 'True', 'max_length': '255'})
         },
         'tardis_portal.datafileparameterset': {
             'Meta': {'ordering': "['id']", 'object_name': 'DatafileParameterSet'},
@@ -332,7 +332,7 @@ class Migration(SchemaMigration):
             'name': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['tardis_portal.ParameterName']"}),
             'numerical_value': ('django.db.models.fields.FloatField', [], {'null': 'True', 'blank': 'True'}),
             'parameterset': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['tardis_portal.DatasetParameterSet']"}),
-            'string_value': ('django.db.models.fields.TextField', [], {'null': 'True', 'blank': 'True'})
+            'string_value': ('django.db.models.fields.CharField', [], {'null': 'True', 'blank': 'True', 'max_length': '255'})
         },
         'tardis_portal.datasetparameterset': {
             'Meta': {'ordering': "['id']", 'object_name': 'DatasetParameterSet'},
@@ -377,7 +377,7 @@ class Migration(SchemaMigration):
             'name': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['tardis_portal.ParameterName']"}),
             'numerical_value': ('django.db.models.fields.FloatField', [], {'null': 'True', 'blank': 'True'}),
             'parameterset': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['tardis_portal.ExperimentParameterSet']"}),
-            'string_value': ('django.db.models.fields.TextField', [], {'null': 'True', 'blank': 'True'})
+            'string_value': ('django.db.models.fields.CharField', [], {'null': 'True', 'blank': 'True', 'max_length': '255'})
         },
         'tardis_portal.experimentparameterset': {
             'Meta': {'ordering': "['id']", 'object_name': 'ExperimentParameterSet'},
