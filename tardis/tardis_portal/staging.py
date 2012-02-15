@@ -42,6 +42,8 @@ from os import path, makedirs, listdir, rmdir
 
 from django.conf import settings
 
+from celery.task import task
+from django.core.mail import send_mail
 
 logger = logging.getLogger(__name__)
 
@@ -325,7 +327,7 @@ def get_full_staging_path(username):
 
     from os import path
     staging_path = path.join(settings.STAGING_PATH, username)
-    logger.debug('full staging path returned as ' + str(staging_path))
+    #logger.debug('full staging path returned as ' + str(staging_path))
     if not path.exists(staging_path):
         return None
     else:

@@ -36,6 +36,13 @@ forms module
 .. moduleauthor::  Gerson Galang <gerson.galang@versi.edu.au>
 
 '''
+import os
+import sys
+sys.path.append(os.getcwd())
+
+from django.core.mail import send_mail
+from celery.task import task
+from tardis.tardis_portal.auth.localdb_auth import django_user, django_group
 
 from os.path import basename
 from os import path, listdir
@@ -348,8 +355,7 @@ class FullExperimentModel(UserDict):
     the :func:`tardis.tardis_portal.forms.FullExperiment.save` function.
     It provides a convience method for saving the model objects.
     """
-
-    def save_m2m(self):
+    def save_m2m(self, user):
         """
         {'experiment': experiment,
         'author_experiments': author_experiments,
@@ -383,6 +389,19 @@ class FullExperimentModel(UserDict):
                 if not dataset.instance.immutable:
                     dataset.instance.delete()
 
+        # add defaul ACL
+        acl = models.ExperimentACL(experiment=self.data['experiment'],
+                            pluginId=django_user,
+                            entityId=str(user.id),
+                            canRead=True,
+                            canWrite=True,
+                            canDelete=True,
+                            isOwner=True,
+                            aclOwnershipType=models.ExperimentACL.OWNER_OWNED)
+        acl.save()
+        
+        send_mail('Experiment Creation Successful', 'Yay \o/ ' + str(self.data['experiment'].id), 'steve.androulakis@gmail.com',
+            ['steve.androulakis@gmail.com'], fail_silently=False)        
 
 class DataFileFormSet(BaseInlineFormSet):
 
@@ -578,6 +597,8 @@ class ExperimentForm(forms.ModelForm):
     def save(self, commit=True):
         # remove m2m field before saving
         del self.cleaned_data['authors']
+        
+        user = User.objects.get(username=self.data['username'])
 
         experiment = super(ExperimentForm, self).save(commit)
 
@@ -606,8 +627,12 @@ class ExperimentForm(forms.ModelForm):
                         mutable = False
 
                 if self.dataset_files[key] and mutable:
+                    folderpaths = []
+                    removefolderpaths = []
+                    staging = get_full_staging_path(self.dataset_files[key].data['username'])
+                    
                     for df_form in self.dataset_files[key].forms:                  
-                                             
+                                                                 
                         filepath = df_form.instance.url                     
                         
                         # crazy logic to work out if file exists already or is wildcard entry
@@ -616,15 +641,18 @@ class ExperimentForm(forms.ModelForm):
                             loop_df = df_form.save(False) 
                         
                             filepath = loop_df.url
-                            self.dataset_files[key].forms.remove(df_form)                                               
-                        
+                            
+                            folderpaths.append(filepath)      
+                            
+                            removefolderpaths.append(df_form)
+                    
+                    for filepath in folderpaths:
                         if filepath.endswith('/*'):
-
-                            staging = get_full_staging_path(self.dataset_files[key].data['username'])
+                    
                             pathname = path.join(staging, filepath[:-2])
-
+                    
                             filelist = listdir(pathname)
-
+                    
                             filelist.sort()
                         
                             for filename in filelist:
@@ -639,8 +667,12 @@ class ExperimentForm(forms.ModelForm):
                         
                                     # a wildcard entry (folder) save
                                     dataset_files.append(df)
-
-                    # a 'normal' sze
+                    
+                    # remove the wildcard entries for a 'normal' modelform save
+                    for df_form in removefolderpaths:
+                        self.dataset_files[key].forms.remove(df_form)                
+                    
+                    # # a 'normal' sze
                     o_df = self.dataset_files[key].save(commit)
                     dataset_files += o_df                     
 
@@ -652,13 +684,25 @@ class ExperimentForm(forms.ModelForm):
         if hasattr(self.dataset_files, 'deleted_forms'):
             for df in self.dataset_files.deleted_forms:
                 if not ds.instance.immutable:
-                    df.instance.delete()
+                    df.instance.delete()                    
 
-        return FullExperimentModel({'experiment': experiment,
+        full_experiment = FullExperimentModel({'experiment': experiment,
                                     'author_experiments': author_experiments,
                                     'authors': authors,
                                     'datasets': datasets,
                                     'dataset_files': dataset_files})
+
+                                    # group/owner assignment stuff, soon to be replaced
+
+        experiment = full_experiment['experiment']
+        experiment.created_by = user
+        for df in full_experiment['dataset_files']:
+            if not df.url.startswith(path.sep):
+                df.url = path.join(get_full_staging_path(
+                                    user.username),
+                                    df.url)
+
+        full_experiment.save_m2m(user)
 
     def is_valid(self):
         """

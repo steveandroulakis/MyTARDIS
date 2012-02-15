@@ -36,6 +36,12 @@ views.py
 .. moduleauthor:: Ulrich Felzmaann <ulrich.felzmann@versi.edu.au>
 
 """
+import os
+import sys
+sys.path.append(os.getcwd())
+
+from celery.task import task
+from tardis.tardis_portal.tasks import SaveExperiment
 
 from base64 import b64decode
 import urllib2
@@ -61,13 +67,16 @@ from django.views.decorators.cache import never_cache
 
 from tardis.urls import getTardisApps
 from tardis.tardis_portal.ProcessExperiment import ProcessExperiment
-from tardis.tardis_portal.forms import ExperimentForm, \
+from tardis.tardis_portal.forms import \
     createSearchDatafileForm, createSearchDatafileSelectionForm, \
     LoginForm, RegisterExperimentForm, createSearchExperimentForm, \
     ChangeGroupPermissionsForm, ChangeUserPermissionsForm, \
     ImportParamsForm, create_parameterset_edit_form, \
     save_datafile_edit_form, create_datafile_add_form,\
-    save_datafile_add_form, MXDatafileSearchForm
+    save_datafile_add_form, MXDatafileSearchForm,\
+    FullExperimentModel
+    
+from tardis_portal.forms import ExperimentForm
 
 from tardis.tardis_portal.errors import UnsupportedSearchQueryTypeError
 from tardis.tardis_portal.staging import add_datafile_to_dataset,\
@@ -564,36 +573,15 @@ def create_experiment(request,
         c['staging_mount_prefix'] = settings.STAGING_MOUNT_PREFIX
 
     if request.method == 'POST':
-        form = ExperimentForm(request.POST, request.FILES)
-        if form.is_valid():
-            full_experiment = form.save(commit=False)
+        logger.error("STARTSTARTSTART>>>")
+        SaveExperiment.delay(post=request.POST, files=request.FILES)
+        logger.error("FINISHFINISHFINISH>>>")
 
-            # group/owner assignment stuff, soon to be replaced
-
-            experiment = full_experiment['experiment']
-            experiment.created_by = request.user
-            for df in full_experiment['dataset_files']:
-                if not df.url.startswith(path.sep):
-                    df.url = path.join(get_full_staging_path(
-                                        request.user.username),
-                                        df.url)
-            full_experiment.save_m2m()
-
-            # add defaul ACL
-            acl = ExperimentACL(experiment=experiment,
-                                pluginId=django_user,
-                                entityId=str(request.user.id),
-                                canRead=True,
-                                canWrite=True,
-                                canDelete=True,
-                                isOwner=True,
-                                aclOwnershipType=ExperimentACL.OWNER_OWNED)
-            acl.save()
-
-            request.POST = {'status': "Experiment Created."}
-            return HttpResponseRedirect(reverse(
-                'tardis.tardis_portal.views.view_experiment',
-                args=[str(experiment.id)]) + "#created")
+        # return HttpResponseRedirect(reverse(
+        #     'tardis.tardis_portal.views.view_experiment',
+        #     args=[str(experiment.id)]) + "#created")
+            
+        return HttpResponse('Experiment creating. Please wait')
 
         c['status'] = "Errors exist in form."
         c["error"] = 'true'
@@ -605,7 +593,6 @@ def create_experiment(request,
     c['default_institution'] = settings.DEFAULT_INSTITUTION
     c['username'] = request.user.username
     return HttpResponse(render_response_index(request, template_name, c))
-
 
 @never_cache
 @authz.experiment_access_required
