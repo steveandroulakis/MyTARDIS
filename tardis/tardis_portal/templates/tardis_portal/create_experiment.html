@@ -59,7 +59,7 @@
 	    plugins : [ "themes", "html_data", "checkbox" ],
 		checkbox : { 
 		                two_state : true, 
-		                real_checkboxes : true 
+						checked_parent_open: true,
 		        },
 	});
 
@@ -83,6 +83,21 @@
 	    });
 	
 	    $(".jstree-open.jstree-checked").each(function(){
+		exists = false;
+		filename = $(this).attr('id');	
+	
+        file_list.find(".file").each(function(){
+            if(filename == $(this).html()) {
+                exists = true;
+            }
+        });	
+	
+		if(!exists) {
+		    addDatafile(file_list, filename);
+		}
+	    });	
+	
+	    $(".jstree-closed.jstree-checked").each(function(){
 		exists = false;
 		filename = $(this).attr('id');	
 	
@@ -312,7 +327,7 @@
               </div>
             </div>
 	    {% if directory_listing %}
-              <p class="my_files">My Files</p>
+              <p class="my_files">My Folder</p>
 	      <div class="msg_body">
 		<p><strong>Select Files To Be Added To A Dataset:</strong></p>
 		<div id="demo1" class="demo">

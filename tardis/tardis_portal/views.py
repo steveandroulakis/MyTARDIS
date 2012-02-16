@@ -573,16 +573,12 @@ def create_experiment(request,
         c['staging_mount_prefix'] = settings.STAGING_MOUNT_PREFIX
 
     if request.method == 'POST':
-        logger.error("STARTSTARTSTART>>>")
         SaveExperiment.delay(post=request.POST, files=request.FILES)
-        logger.error("FINISHFINISHFINISH>>>")
 
-        # return HttpResponseRedirect(reverse(
-        #     'tardis.tardis_portal.views.view_experiment',
-        #     args=[str(experiment.id)]) + "#created")
+        return HttpResponseRedirect(reverse(
+            'tardis.tardis_portal.views.experiment_index')\
+            + "#created")
             
-        return HttpResponse('Experiment creating. Please wait')
-
         c['status'] = "Errors exist in form."
         c["error"] = 'true'
 

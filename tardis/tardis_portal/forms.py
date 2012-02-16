@@ -633,40 +633,43 @@ class ExperimentForm(forms.ModelForm):
                     
                     for df_form in self.dataset_files[key].forms:                  
                                                                  
-                        filepath = df_form.instance.url                     
+                        df_form_filepath = df_form.instance.url                     
                         
                         # crazy logic to work out if file exists already or is wildcard entry
                         # not sure if this breaks individual file loading (if we're bringing back)
-                        if filepath == '':
+                        if df_form_filepath == '':
                             loop_df = df_form.save(False) 
                         
-                            filepath = loop_df.url
+                            df_form_filepath = loop_df.url
                             
-                            folderpaths.append(filepath)      
+                            folderpaths.append(df_form_filepath)      
                             
                             removefolderpaths.append(df_form)
-                    
+                                        
                     for filepath in folderpaths:
-                        if filepath.endswith('/*'):
-                    
-                            pathname = path.join(staging, filepath[:-2])
+                        # if filepath == '\*':
+                        #     pathname = staging
+                        # else:
+                        pathname = path.join(staging, filepath[:-2])
+                        
+                        if path.isdir(pathname):
                     
                             filelist = listdir(pathname)
                     
                             filelist.sort()
                         
-                            for filename in filelist:
+                            for filename in filelist:                           
                                     
                                 full_path = path.join(pathname, filename)
                                 if not path.isdir(full_path):
-                                
-                                    df = Dataset_File(dataset=o_dataset,
-                                                        filename=basename(filename),
-                                                        url=filepath[:-2] + path.sep + filename,
-                                                        protocol='staging', size=path.getsize(full_path))  
+                                    if not basename(filename).startswith('.'):
+                                        df = Dataset_File(dataset=o_dataset,
+                                                            filename=basename(filename),
+                                                            url='.' + path.sep + filepath[:-2] + path.sep + filename,
+                                                            protocol='staging', size=path.getsize(full_path))  
                         
-                                    # a wildcard entry (folder) save
-                                    dataset_files.append(df)
+                                        # a wildcard entry (folder) save
+                                        dataset_files.append(df)
                     
                     # remove the wildcard entries for a 'normal' modelform save
                     for df_form in removefolderpaths:

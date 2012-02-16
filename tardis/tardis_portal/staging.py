@@ -56,7 +56,7 @@ def staging_traverse(staging=settings.STAGING_PATH):
     :rtype: string
     """
 
-    ul = '<ul><li id="phtml_1"><a>My Files</a><ul>'
+    ul = '<ul><li id="/*"><a>My Files</a><ul>'
 
     filelist = []
     try:
@@ -150,7 +150,8 @@ def stage_file(datafile):
                                       datafile.url)
     copyto = path.join(dataset_path, relpath)
     original_copyto = copyto
-
+    
+    print 'staging file: %s to %s' % (copyfrom, copyto)
     logger.debug('staging file: %s to %s' % (copyfrom, copyto))
     if path.isdir(copyfrom):
         if not path.exists(copyto):
