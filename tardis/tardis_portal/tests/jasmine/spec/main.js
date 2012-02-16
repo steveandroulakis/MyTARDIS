@@ -38,7 +38,7 @@ describe("Main", function() {
 	        expect($('#jqmAlertStatus')).toBeVisible();
 	        window.location.hash = '#created';
 	        activateAlertStatus();
-	        expect($('#jqmStatusMessage')).toHaveText('Experiment Creating<br/>An email will be sent when finished.');
+	        expect($('#jqmStatusMessage')).toHaveText('Experiment Saving<br/>An email will be sent when finished.');
 	        expect($("#jqmAlertStatus")).toBeVisible();
 	        expect(window.location.hash).toEqual('#created');
 	        $(".jqmClose").click();

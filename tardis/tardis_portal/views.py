@@ -573,7 +573,7 @@ def create_experiment(request,
         c['staging_mount_prefix'] = settings.STAGING_MOUNT_PREFIX
 
     if request.method == 'POST':
-        SaveExperiment.delay(post=request.POST, files=request.FILES)
+        SaveExperiment.delay(post=request.POST, files=request.FILES, user=request.user)
 
         return HttpResponseRedirect(reverse(
             'tardis.tardis_portal.views.experiment_index')\
@@ -636,24 +636,13 @@ def edit_experiment(request, experiment_id,
         c['staging_mount_prefix'] = settings.STAGING_MOUNT_PREFIX
 
     if request.method == 'POST':
-        form = ExperimentForm(request.POST, request.FILES,
-                              instance=experiment, extra=0)
-        if form.is_valid():
-            full_experiment = form.save(commit=False)
-            experiment = full_experiment['experiment']
-            experiment.created_by = request.user
-            for df in full_experiment['dataset_files']:
-                if df.protocol == "staging":
-                    df.url = path.join(
-                    get_full_staging_path(request.user.username),
-                    df.url)
-            full_experiment.save_m2m()
+        SaveExperiment.delay(post=request.POST, files=request.FILES, user=request.user,
+            instance=experiment, extra=0)
 
-            request.POST = {'status': "Experiment Saved."}
-            return HttpResponseRedirect(reverse(
-                'tardis.tardis_portal.views.view_experiment',
-                args=[str(experiment.id)]) + "#saved")
-
+        return HttpResponseRedirect(reverse(
+            'tardis.tardis_portal.views.experiment_index')\
+            + "#created")
+            
         c['status'] = "Errors exist in form."
         c["error"] = 'true'
     else:

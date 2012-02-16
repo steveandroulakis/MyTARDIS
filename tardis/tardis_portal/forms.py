@@ -40,7 +40,6 @@ import os
 import sys
 sys.path.append(os.getcwd())
 
-from django.core.mail import send_mail
 from celery.task import task
 from tardis.tardis_portal.auth.localdb_auth import django_user, django_group
 
@@ -355,7 +354,19 @@ class FullExperimentModel(UserDict):
     the :func:`tardis.tardis_portal.forms.FullExperiment.save` function.
     It provides a convience method for saving the model objects.
     """
-    def save_m2m(self, user):
+    def create_default_ACL(self, user):
+        # add defaul ACL
+        acl = models.ExperimentACL(experiment=self.data['experiment'],
+                            pluginId=django_user,
+                            entityId=str(user.id),
+                            canRead=True,
+                            canWrite=True,
+                            canDelete=True,
+                            isOwner=True,
+                            aclOwnershipType=models.ExperimentACL.OWNER_OWNED)
+        return acl.save()
+    
+    def save_m2m(self):
         """
         {'experiment': experiment,
         'author_experiments': author_experiments,
@@ -388,20 +399,7 @@ class FullExperimentModel(UserDict):
             for dataset in self.data['dataset_files'].deleted_forms:
                 if not dataset.instance.immutable:
                     dataset.instance.delete()
-
-        # add defaul ACL
-        acl = models.ExperimentACL(experiment=self.data['experiment'],
-                            pluginId=django_user,
-                            entityId=str(user.id),
-                            canRead=True,
-                            canWrite=True,
-                            canDelete=True,
-                            isOwner=True,
-                            aclOwnershipType=models.ExperimentACL.OWNER_OWNED)
-        acl.save()
-        
-        send_mail('Experiment Creation Successful', 'Yay \o/ ' + str(self.data['experiment'].id), 'steve.androulakis@gmail.com',
-            ['steve.androulakis@gmail.com'], fail_silently=False)        
+     
 
 class DataFileFormSet(BaseInlineFormSet):
 
@@ -658,14 +656,18 @@ class ExperimentForm(forms.ModelForm):
                     
                             filelist.sort()
                         
-                            for filename in filelist:                           
+                            for filename in filelist:
+                                
+                                pre_url = filepath[:-2] + path.sep
+                                if pre_url == path.sep:
+                                    pre_url = ''
                                     
                                 full_path = path.join(pathname, filename)
                                 if not path.isdir(full_path):
                                     if not basename(filename).startswith('.'):
                                         df = Dataset_File(dataset=o_dataset,
                                                             filename=basename(filename),
-                                                            url='.' + path.sep + filepath[:-2] + path.sep + filename,
+                                                            url=pre_url + filename,
                                                             protocol='staging', size=path.getsize(full_path))  
                         
                                         # a wildcard entry (folder) save
@@ -695,17 +697,20 @@ class ExperimentForm(forms.ModelForm):
                                     'datasets': datasets,
                                     'dataset_files': dataset_files})
 
-                                    # group/owner assignment stuff, soon to be replaced
+        # group/owner assignment stuff, soon to be replaced
 
+        # todo: refine..
         experiment = full_experiment['experiment']
         experiment.created_by = user
         for df in full_experiment['dataset_files']:
             if not df.url.startswith(path.sep):
-                df.url = path.join(get_full_staging_path(
-                                    user.username),
-                                    df.url)
-
-        full_experiment.save_m2m(user)
+                if df.protocol == "staging":
+                    df.url = path.join(get_full_staging_path(
+                                        user.username),
+                                        df.url)
+        full_experiment.save_m2m()
+        
+        return full_experiment
 
     def is_valid(self):
         """
