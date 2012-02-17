@@ -681,14 +681,21 @@ table.experiment-table th {
         padding: 10px;
 	}
 	
+	.datasets
+	{
+	    width: 520px;
+	}
+	
 	div.floating_menu {
 	position:fixed;
 	width:400px;
 	z-index:100;
-    top: 200px;
+    top: 27%;
     left: auto;
-    right: 160px;
+    right: 2%;
     background-color: white;
+    border: 1px gray solid;
+    padding: 20px;
     }
 
 	.add_new_dataset {
