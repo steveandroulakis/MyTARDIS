@@ -36,12 +36,8 @@ views.py
 .. moduleauthor:: Ulrich Felzmaann <ulrich.felzmann@versi.edu.au>
 
 """
-import os
-import sys
-sys.path.append(os.getcwd())
-
 from celery.task import task
-from tardis.tardis_portal.tasks import SaveExperiment
+from tardis.tardis_portal.tasks import SaveExperiment, SendMail
 
 from base64 import b64decode
 import urllib2
@@ -127,6 +123,14 @@ def logout(request):
 
 def index(request):
     status = ''
+    
+    subject = 'Successful'
+    body = 'Yadddy \o/ '
+    to = [request.user.email,]
+    
+    SendMail.delay(subject=subject,
+        body=body,
+        to=to)
     
     c = Context({'status': status})
     return HttpResponse(render_response_index(request,
@@ -642,9 +646,7 @@ def edit_experiment(request, experiment_id,
         return HttpResponseRedirect(reverse(
             'tardis.tardis_portal.views.experiment_index')\
             + "#created")
-        
-        c['status'] = "Errors exist in form."
-        c["error"] = 'true'
+    
     else:
         form = ExperimentForm(instance=experiment, extra=0)
     
@@ -2498,7 +2500,7 @@ class ExperimentSearchView(SearchView):
             experiment_ids = [ int(f[0]) for f in experiment_facets if int(f[1]) > 0 ]
         else:
             experiment_ids = []
-
+        
         
         access_list = []
         

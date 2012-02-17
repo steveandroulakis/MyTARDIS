@@ -36,10 +36,6 @@ forms module
 .. moduleauthor::  Gerson Galang <gerson.galang@versi.edu.au>
 
 '''
-import os
-import sys
-sys.path.append(os.getcwd())
-
 from celery.task import task
 from tardis.tardis_portal.auth.localdb_auth import django_user, django_group
 
@@ -627,57 +623,70 @@ class ExperimentForm(forms.ModelForm):
                 if self.dataset_files[key] and mutable:
                     folderpaths = []
                     removefolderpaths = []
-                    staging = get_full_staging_path(self.dataset_files[key].data['username'])
+                    staging = get_full_staging_path(\
+                        self.dataset_files[key].data['username'])
                     
+                    # separate existing files/folders from new
                     for df_form in self.dataset_files[key].forms:
                         
                         df_form_filepath = df_form.instance.url
                         
-                        # crazy logic to work out if file exists already or is wildcard entry
-                        # not sure if this breaks individual file loading (if we're bringing back)
+                        # crazy logic to work out if file exists
+                        # already or is wildcard entry
+                        # not sure if this breaks individual
+                        # file loading (if we're bringing back)
                         if df_form_filepath == '':
                             loop_df = df_form.save(False)
                             
                             df_form_filepath = loop_df.url
                             
                             folderpaths.append(df_form_filepath)
-                            
                             removefolderpaths.append(df_form)
                     
+                    # loop new folders and add files contained within
                     for filepath in folderpaths:
-                        # if filepath == '\*':
-                        #     pathname = staging
-                        # else:
+                        
                         pathname = path.join(staging, filepath[:-2])
                         
+                        filelist = None
                         if path.isdir(pathname):
                             
                             filelist = listdir(pathname)
                             
                             filelist.sort()
+                        
+                        for filename in filelist:
                             
-                            for filename in filelist:
-                                
-                                pre_url = filepath[:-2] + path.sep
-                                if pre_url == path.sep:
-                                    pre_url = ''
-                                
-                                full_path = path.join(pathname, filename)
-                                if not path.isdir(full_path):
-                                    if not basename(filename).startswith('.'):
-                                        df = Dataset_File(dataset=o_dataset,
-                                                            filename=basename(filename),
-                                                            url=pre_url + filename,
-                                                            protocol='staging', size=path.getsize(full_path))
-                                        
-                                        # a wildcard entry (folder) save
-                                        dataset_files.append(df)
+                            # fix for root path being added
+                            pre_url = filepath[:-2] + path.sep
+                            if pre_url == path.sep:
+                                pre_url = ''
+                            
+                            full_path = path.join(pathname, filename)
+                            if not path.isdir(full_path):
+                                if not basename(filename).startswith('.'):
+                                    
+                                    df = Dataset_File(\
+                                        dataset=\
+                                            o_dataset,
+                                        filename=\
+                                            basename(filename),
+                                        url=\
+                                            pre_url + filename,
+                                        protocol=\
+                                            'staging',
+                                        size=\
+                                            path.getsize(full_path))
+                                    
+                                    # append file to list for save
+                                    dataset_files.append(df)
                     
-                    # remove the wildcard entries for a 'normal' modelform save
+                    # remove the new folder entries from
+                    # list before a 'normal' modelform save
                     for df_form in removefolderpaths:
                         self.dataset_files[key].forms.remove(df_form)
                     
-                    # # a 'normal' sze
+                    # 'normal' modelform save
                     o_df = self.dataset_files[key].save(commit)
                     dataset_files += o_df
         
@@ -697,12 +706,11 @@ class ExperimentForm(forms.ModelForm):
                                     'datasets': datasets,
                                     'dataset_files': dataset_files})
         
-        # group/owner assignment stuff, soon to be replaced
-        
-        # todo: refine..
         experiment = full_experiment['experiment']
         experiment.created_by = user
         for df in full_experiment['dataset_files']:
+            
+            # grischa's fix for assigning correct new file paths
             if not df.url.startswith(path.sep):
                 if df.protocol == "staging":
                     df.url = path.join(get_full_staging_path(
