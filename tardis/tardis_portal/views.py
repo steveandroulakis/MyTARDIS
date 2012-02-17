@@ -124,14 +124,6 @@ def logout(request):
 def index(request):
     status = ''
     
-    subject = 'Successful'
-    body = 'Yadddy \o/ '
-    to = [request.user.email,]
-    
-    SendMail.delay(subject=subject,
-        body=body,
-        to=to)
-    
     c = Context({'status': status})
     return HttpResponse(render_response_index(request,
                         'tardis_portal/index.html', c))
