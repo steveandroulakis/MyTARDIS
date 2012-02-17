@@ -864,7 +864,7 @@ def createSearchExperimentForm():
                         forms.CharField(label=parameterName.full_name,
                         max_length=255, required=False)
                 fieldNames.append(fieldName)
-
+    
     
     for schema, fieldlist in schemaAndFieldLists:
         name = schema.name if schema.name != None else 'No schema name'

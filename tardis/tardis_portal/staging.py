@@ -56,7 +56,7 @@ def staging_traverse(staging=settings.STAGING_PATH):
     :rtype: string
     """
 
-    ul = '<ul><li id="/*"><a>My Files</a><ul>'
+    ul = '<ul><li id="root"><a>Files</a><ul>'
 
     filelist = []
     try:

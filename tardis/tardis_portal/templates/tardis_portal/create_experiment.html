@@ -55,7 +55,7 @@
     $(document).ready(function() {
 	{% if directory_listing %}
         $("#demo1").jstree({
-	    core : { /* core options go here */ },
+	    core : { "initially_open" : ['root'] },
 	    plugins : [ "themes", "html_data", "checkbox" ],
 		checkbox : { 
 		                two_state : true, 
@@ -71,6 +71,11 @@
 		exists = false;
 		filename = $(this).attr('id');
 
+		if (filename == 'root')
+		{
+			filename = '/*';
+		}
+
         file_list.find(".file").each(function(){
             if(filename == $(this).html()) {
                 exists = true;
@@ -84,7 +89,12 @@
 	
 	    $(".jstree-open.jstree-checked").each(function(){
 		exists = false;
-		filename = $(this).attr('id');	
+		filename = $(this).attr('id');
+		
+		if (filename == 'root')
+		{
+			filename = '/*';
+		}			
 	
         file_list.find(".file").each(function(){
             if(filename == $(this).html()) {
@@ -100,6 +110,11 @@
 	    $(".jstree-closed.jstree-checked").each(function(){
 		exists = false;
 		filename = $(this).attr('id');	
+		
+		if (filename == 'root')
+		{
+			filename = '/*';
+		}		
 	
         file_list.find(".file").each(function(){
             if(filename == $(this).html()) {
@@ -330,14 +345,14 @@
 		<div id="file_select_container" class="floating_menu">
               <p class="my_files">Transfer Data</p>
 	    <div class="msg_body">
-		<p><strong>Select Files To Be Added To A Dataset:</strong></p>
+		<p><strong>Select Folders To Be Added To A Dataset:</strong></p>
 		<div id="demo1" class="demo">
 		  {{directory_listing|safe}}
 		</div>
 		</div>
 		<div id="transfer_instructions">
 		<p>
-		To add files to the 'Transfer Data' window, mount the following file store via your operating system:
+		To add folders to the 'Transfer Data' window, mount the following file store via your operating system:
 		</p>
 		<p id="mountpath">
 		<strong>{{staging_mount_prefix}}{{username}}</strong>
@@ -367,7 +382,7 @@
 		    {% if directory_listing %}
 		      <p><input class="add_files" type="button" value="Add selected files to dataset"/></p>
 		    {% endif %}
-		    <p><strong>Files added to Dataset</strong></p>
+		    <p><strong>Files added to Dataset</strong> <br/>(entries ending in /* will have their contents copied, excluding subfolders)</p>
 		    <div>
 		      <ul class="datafiles">
 			{{ file_forms.management_form }}
