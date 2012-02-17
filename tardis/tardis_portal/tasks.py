@@ -10,11 +10,11 @@ class SaveExperiment(Task):
         if not instance: # new
             ef = ExperimentForm(post, files)
             if ef.is_valid():
-                full_experiment = ef.save(commit=False)            
-
+                full_experiment = ef.save(commit=False)
+                
                 # group/owner assignment stuff, soon to be replaced
-
-                full_experiment.create_default_ACL(user)                
+                
+                full_experiment.create_default_ACL(user)
                 
                 send_mail('Experiment Creation Successful', 'Yay \o/ ' + str(full_experiment['experiment'].id), 'steve.androulakis@gmail.com',
                     ['steve.androulakis@gmail.com'], fail_silently=False)
