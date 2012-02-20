@@ -35,7 +35,9 @@ class SaveExperiment(Task):
                     full_experiment.create_default_ACL(user)
                     
                     subject = 'Experiment Creation Successful'
-                    body = 'Yay \o/ ' + str(full_experiment['experiment'].id)
+                    body = 'MyTardis/Squirrel has successfully created your experiment. ' + \
+                    '\nAccess it here: http://squirrel.its.monash.edu.au/experiment/view/' + \
+                    str(full_experiment['experiment'].id) + '/'
                     to = [user.email,]
                     
                     SendMail.delay(subject=subject,
@@ -51,7 +53,9 @@ class SaveExperiment(Task):
                     full_experiment = ef.save(commit=False)
                     
                     subject = 'Experiment Save Successful'
-                    body = 'Woo \o/ ' + str(full_experiment['experiment'].id)
+                    body = 'MyTardis/Squirrel has successfully saved your experiment. ' + \
+                    '\nAccess it here: http://squirrel.its.monash.edu.au/experiment/view/' + \
+                    str(full_experiment['experiment'].id) + '/'
                     to = [user.email,]
                     
                     SendMail.delay(subject=subject,
@@ -65,7 +69,7 @@ class SaveExperiment(Task):
                 + str(type(e)) + ': ' + str(e))
             
             subject = 'Experiment Save Failed'
-            body = str(type(e)) + ': ' + str(e)
+            body = 'Error message: ' + str(type(e)) + ': ' + str(e)
             to = [user.email,]
             
             SendMail.delay(subject=subject,
