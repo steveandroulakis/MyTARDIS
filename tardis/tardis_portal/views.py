@@ -568,18 +568,23 @@ def create_experiment(request,
         c['directory_listing'] = staging_traverse(staging)
         c['staging_mount_prefix'] = settings.STAGING_MOUNT_PREFIX
     
+    ef = None
+    form = ExperimentForm(extra=1)
     if request.method == 'POST':
-        SaveExperiment.delay(post=request.POST, files=request.FILES, user=request.user)
+        ef = ExperimentForm(request.POST, request.FILES)
+        if ef.is_valid():
+            SaveExperiment.delay(post=request.POST,
+                files=request.FILES,
+                user=request.user)
         
-        return HttpResponseRedirect(reverse(
-            'tardis.tardis_portal.views.experiment_index')\
-            + "#created")
-        
-        c['status'] = "Errors exist in form."
-        c["error"] = 'true'
+            return HttpResponseRedirect(reverse(
+                'tardis.tardis_portal.views.experiment_index')\
+                + "#created")
     
-    else:
-        form = ExperimentForm(extra=1)
+        else:
+            form = ef
+            c['status'] = "Please fill out all required fields"
+            c["error"] = 'true'
     
     c['form'] = form
     c['default_institution'] = settings.DEFAULT_INSTITUTION
@@ -606,7 +611,7 @@ def metsexport_experiment(request, experiment_id):
 @permission_required('tardis_portal.change_experiment')
 @authz.write_permissions_required
 def edit_experiment(request, experiment_id,
-                      template="tardis_portal/create_experiment.html"):
+                      template_name="tardis_portal/create_experiment.html"):
     """Edit an existing experiment.
     
     :param request: a HTTP Request instance
@@ -631,21 +636,31 @@ def edit_experiment(request, experiment_id,
         c['directory_listing'] = staging_traverse(staging)
         c['staging_mount_prefix'] = settings.STAGING_MOUNT_PREFIX
     
+    form = None
     if request.method == 'POST':
-        SaveExperiment.delay(post=request.POST, files=request.FILES, user=request.user,
-            instance=experiment, extra=0)
-        
-        return HttpResponseRedirect(reverse(
-            'tardis.tardis_portal.views.experiment_index')\
-            + "#created")
-    
+        form = ExperimentForm(request.POST, request.FILES,
+                                      instance=experiment, extra=0)
+        if form.is_valid():
+            SaveExperiment.delay(post=request.POST,
+                files=request.FILES,
+                user=request.user,
+                instance=experiment,
+                extra=0)
+
+            return HttpResponseRedirect(reverse(
+                'tardis.tardis_portal.views.experiment_index')\
+                + "#created")
+
+        c['status'] = "Please fill out all required fields"
+        c["error"] = 'true'
+
     else:
         form = ExperimentForm(instance=experiment, extra=0)
-    
+
     c['form'] = form
+    c['default_institution'] = settings.DEFAULT_INSTITUTION
     c['username'] = request.user.username
-    return HttpResponse(render_response_index(request,
-                        template, c))
+    return HttpResponse(render_response_index(request, template_name, c))
 
 
 # todo complete....
