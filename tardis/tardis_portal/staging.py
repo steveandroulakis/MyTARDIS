@@ -42,6 +42,8 @@ from os import path, makedirs, listdir, rmdir
 
 from django.conf import settings
 
+from celery.task import task
+from django.core.mail import send_mail
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +56,7 @@ def staging_traverse(staging=settings.STAGING_PATH):
     :rtype: string
     """
 
-    ul = '<ul><li id="phtml_1"><a>My Files</a><ul>'
+    ul = '<ul><li id="root"><a>Files</a><ul>'
 
     filelist = []
     try:
@@ -90,16 +92,11 @@ def traverse(pathname, dirname=settings.STAGING_PATH):
     :rtype: string
     """
     if path.isdir(pathname):
-        li = '<li id="%s"><a>%s</a>' % (path.relpath(pathname, dirname),
-                                    path.basename(pathname))
-    else:
-        li = '<li class="fileicon" id="%s"><a>%s</a>' % (path.relpath(pathname, dirname),
+        li = '<li id="%s/*"><a>%s</a>' % (path.relpath(pathname, dirname),
                                     path.basename(pathname))
 
     if pathname.rpartition('/')[2].startswith('.'):
         return ''
-    if path.isfile(pathname):
-        return li + '</li>'
     if path.isdir(pathname):
         ul = '<ul>'
         filelist = listdir(pathname)
@@ -128,6 +125,7 @@ class StagingHook():
         created
             A boolean; True if a new record was created.
         """
+
         instance = kwargs.get('instance')
         created = kwargs.get('created')
         if not created:
@@ -152,7 +150,8 @@ def stage_file(datafile):
                                       datafile.url)
     copyto = path.join(dataset_path, relpath)
     original_copyto = copyto
-
+    
+    print 'staging file: %s to %s' % (copyfrom, copyto)
     logger.debug('staging file: %s to %s' % (copyfrom, copyto))
     if path.isdir(copyfrom):
         if not path.exists(copyto):
@@ -329,7 +328,7 @@ def get_full_staging_path(username):
 
     from os import path
     staging_path = path.join(settings.STAGING_PATH, username)
-    logger.debug('full staging path returned as ' + str(staging_path))
+    #logger.debug('full staging path returned as ' + str(staging_path))
     if not path.exists(staging_path):
         return None
     else:

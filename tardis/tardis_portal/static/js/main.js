@@ -47,7 +47,7 @@ var activateAlertStatus = function() {
 	if (window.location.hash) {
 	    if(window.location.hash == '#created')
 	    {
-	        $('#jqmStatusMessage').html('Experiment Created');
+	        $('#jqmStatusMessage').html('Experiment Saving<br/>An email will be sent when finished.');
 	    }
 	    else if(window.location.hash == '#saved')
 	    {

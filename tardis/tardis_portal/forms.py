@@ -36,8 +36,11 @@ forms module
 .. moduleauthor::  Gerson Galang <gerson.galang@versi.edu.au>
 
 '''
+from celery.task import task
+from tardis.tardis_portal.auth.localdb_auth import django_user, django_group
 
 from os.path import basename
+from os import path, listdir
 from UserDict import UserDict
 
 from django import forms
@@ -60,11 +63,12 @@ from registration.models import RegistrationProfile
 from tardis.tardis_portal import models
 from tardis.tardis_portal.fields import MultiValueCommaSeparatedField
 from tardis.tardis_portal.widgets import CommaSeparatedInput, Span, TextInput
-from tardis.tardis_portal.models import UserProfile, UserAuthentication
+from tardis.tardis_portal.models import UserProfile, UserAuthentication, Dataset_File
 from tardis.tardis_portal.auth.localdb_auth \
     import auth_key as locabdb_auth_key
 
 from tardis.tardis_portal.ParameterSetManager import ParameterSetManager
+from tardis.tardis_portal.staging import get_full_staging_path
 
 import logging
 logger = logging.getLogger(__name__)
@@ -78,14 +82,14 @@ def getAuthMethodChoices():
 
 class LoginForm(AuthenticationForm):
     authMethod = forms.CharField()
-
+    
     def __init__(self, *args, **kwargs):
         super(LoginForm, self).__init__(*args, **kwargs)
         self.fields['username'] = \
              forms.CharField(required=True,
                              label="Username",
                              max_length=75)
-
+        
         self.fields['authMethod'] = \
             forms.CharField(required=True,
                             widget=forms.Select(choices=getAuthMethodChoices()),
@@ -98,17 +102,17 @@ attrs_dict = {'class': 'required'}
 class RegistrationForm(forms.Form):
     """
     Form for registering a new user account.
-
+    
     Validates that the requested username is not already in use, and
     requires the password to be entered twice to catch typos.
-
+    
     Subclasses should feel free to add any additional validation they
     need, but should avoid defining a ``save()`` method -- the actual
     saving of collected user data is delegated to the active
     registration backend.
-
+    
     """
-
+    
     username = forms.RegexField(
         regex=r'^[\w\.]+$',
         max_length=30,
@@ -120,37 +124,37 @@ class RegistrationForm(forms.Form):
     email = forms.EmailField(widget=forms.TextInput(attrs=dict(attrs_dict,
                                                                maxlength=75)),
                              label=_("Email address"))
-
+    
     password1 = forms.CharField(
         widget=forms.PasswordInput(attrs=attrs_dict, render_value=False),
         label=_("Password"))
-
+    
     password2 = forms.CharField(
         widget=forms.PasswordInput(attrs=attrs_dict, render_value=False),
         label=_("Password (again)"))
-
+    
     def clean_username(self):
         """
         Validate that the username is alphanumeric and is not already
         in use.
-
+        
         """
         username = '%s' % self.cleaned_data['username']
-
+        
         try:
             User.objects.get(username__iexact=username)
         except User.DoesNotExist:
             return username
         raise forms.ValidationError(
             _("A user with that username already exists."))
-
+    
     def clean(self):
         """
         Verifiy that the values entered into the two password fields
         match. Note that an error here will end up in
         ``non_field_errors()`` because it doesn't apply to a single
         field.
-
+        
         """
         if 'password1' in self.cleaned_data and \
                 'password2' in self.cleaned_data:
@@ -158,30 +162,30 @@ class RegistrationForm(forms.Form):
                     self.cleaned_data['password2']:
                 raise forms.ValidationError(
                     _("The two password fields didn't match."))
-
+        
         return self.cleaned_data
-
+    
     @transaction.commit_on_success()
     def save(self, profile_callback=None):
         user = RegistrationProfile.objects.create_inactive_user(
             username=self.cleaned_data['username'],
             password=self.cleaned_data['password1'],
             email=self.cleaned_data['email'])
-
+        
         userProfile = UserProfile(user=user, isDjangoAccount=True)
         userProfile.save()
-
+        
         authentication = UserAuthentication(
             userProfile=userProfile,
             username=self.cleaned_data['username'],
             authenticationMethod=locabdb_auth_key)
         authentication.save()
-
+        
         return user
 
 
 class ChangeUserPermissionsForm(ModelForm):
-
+    
     class Meta:
         from django.forms.extras.widgets import SelectDateWidget
         from tardis.tardis_portal.models import ExperimentACL
@@ -193,14 +197,14 @@ class ChangeUserPermissionsForm(ModelForm):
 
 
 class ChangeGroupPermissionsForm(forms.Form):
-
+    
     from django.forms.extras.widgets import SelectDateWidget
-
+    
     canRead = forms.BooleanField(label='canRead', required=False)
     canWrite = forms.BooleanField(label='canWrite', required=False)
     canDelete = forms.BooleanField(label='', required=False,
                                    widget=forms.HiddenInput)
-
+    
     effectiveDate = forms.DateTimeField(label='Effective Date',
             widget=SelectDateWidget(), required=False)
     expiryDate = forms.DateTimeField(label='Expiry Date',
@@ -208,7 +212,7 @@ class ChangeGroupPermissionsForm(forms.Form):
 
 
 class AddUserPermissionsForm(forms.Form):
-
+    
     entered_user = forms.CharField(label='User', required=False, max_length=100)
     autocomp_user = forms.CharField(label='', required=False, max_length=100,
                                    widget=forms.HiddenInput)
@@ -225,7 +229,7 @@ class AddUserPermissionsForm(forms.Form):
 
 
 class AddGroupPermissionsForm(forms.Form):
-
+    
     addgroup = forms.CharField(label='Group', required=False, max_length=100)
     addgroup.widget.attrs['class'] = 'groupsuggest'
     create = forms.BooleanField(label='CREATE?', required=False)
@@ -245,7 +249,7 @@ class AddGroupPermissionsForm(forms.Form):
 
 
 class ManageGroupPermissionsForm(forms.Form):
-
+    
     authMethod = forms.CharField(required=True,
         widget=forms.Select(choices=getAuthMethodChoices()),
         label='Authentication Method')
@@ -256,13 +260,13 @@ class ManageGroupPermissionsForm(forms.Form):
 
 
 class DatafileSearchForm(forms.Form):
-
+    
     filename = forms.CharField(required=False, max_length=100)
 
 
 # microscopy
 class MXDatafileSearchForm(DatafileSearchForm):
-
+    
     __DIFFRACTOMETER_CHOICES = (
         ('-', '-'),
         ('Synchrotron', 'Synchrotron'),
@@ -291,13 +295,13 @@ def createLinkedUserAuthenticationForm(authMethods):
     """Create a LinkedUserAuthenticationForm and use the contents of
     authMethods to the list of options in the dropdown menu for
     authenticationMethod.
-
+    
     """
     _authenticationMethodChoices = ()
     for authMethodKey in authMethods.keys():
         _authenticationMethodChoices += (
             (authMethodKey, authMethods[authMethodKey]), )
-
+    
     fields = {}
     fields['authenticationMethod'] = \
         forms.CharField(label='Authentication Method',
@@ -307,7 +311,7 @@ def createLinkedUserAuthenticationForm(authMethods):
         max_length=75, required=True)
     fields['password'] = forms.CharField(required=True,
         widget=forms.PasswordInput(), label='Password', max_length=12)
-
+    
     return type('LinkedUserAuthenticationForm', (forms.BaseForm, ),
                     {'base_fields': fields})
 
@@ -318,14 +322,14 @@ class IRDatafileSearchForm(DatafileSearchForm):
 
 
 class ImportParamsForm(forms.Form):
-
+    
     username = forms.CharField(max_length=400, required=True)
     password = forms.CharField(max_length=400, required=True)
     params = forms.FileField()
 
 
 class RegisterExperimentForm(forms.Form):
-
+    
     username = forms.CharField(max_length=400, required=True)
     password = forms.CharField(max_length=400, required=True)
     xmldata = forms.FileField()
@@ -334,7 +338,7 @@ class RegisterExperimentForm(forms.Form):
     from_url = forms.CharField(max_length=400, required=False)
 
 class Author_Experiment(forms.ModelForm):
-
+    
     class Meta:
         model = models.Author_Experiment
         exclude = ('experiment',)
@@ -346,7 +350,18 @@ class FullExperimentModel(UserDict):
     the :func:`tardis.tardis_portal.forms.FullExperiment.save` function.
     It provides a convience method for saving the model objects.
     """
-
+    def create_default_ACL(self, user):
+        # add defaul ACL
+        acl = models.ExperimentACL(experiment=self.data['experiment'],
+                            pluginId=django_user,
+                            entityId=str(user.id),
+                            canRead=True,
+                            canWrite=True,
+                            canDelete=True,
+                            isOwner=True,
+                            aclOwnershipType=models.ExperimentACL.OWNER_OWNED)
+        return acl.save()
+    
     def save_m2m(self):
         """
         {'experiment': experiment,
@@ -367,7 +382,7 @@ class FullExperimentModel(UserDict):
             if not ds.immutable:
                 ds_f.dataset = ds_f.dataset
                 ds_f.save()
-
+        
         # XXX because saving the form can be now done without
         # commit=False this won't be called during the creation
         # of new experiments.
@@ -375,7 +390,7 @@ class FullExperimentModel(UserDict):
             for dataset in self.data['datasets'].deleted_forms:
                 if not dataset.instance.immutable:
                     dataset.instance.delete()
-
+        
         if hasattr(self.data['dataset_files'], 'deleted_forms'):
             for dataset in self.data['dataset_files'].deleted_forms:
                 if not dataset.instance.immutable:
@@ -383,36 +398,40 @@ class FullExperimentModel(UserDict):
 
 
 class DataFileFormSet(BaseInlineFormSet):
-
+    
     def __init__(self, *args, **kwargs):
+        
         if 'post_save_cb' in kwargs:
             self._post_save_cb = kwargs['post_save_cb']
             del kwargs['post_save_cb']
         else:
             self._post_save_cb = None
         super(DataFileFormSet, self).__init__(**kwargs)
-
+    
     def save_new(self, form, commit=True):
+        
         #this is a local file so correct the missing details
         datafile = super(DataFileFormSet, self).save_new(form, commit=False)
-
+        
+        username = form.data['username']
         filepath = form.cleaned_data['filename']
+        
         datafile.filename = basename(filepath)
-
+        
         if not 'url' in form.cleaned_data or not form.cleaned_data['url']:
             datafile.url = filepath
-
+        
         if not 'size' in form.cleaned_data or not form.cleaned_data['size']:
             datafile.size = u'0'
-
+        
         if not 'protocol' in form.cleaned_data:
             datafile.protocol = u''
-
+        
         if commit == True:
             datafile = super(DataFileFormSet, self).save_new(form,
                                                              commit=commit)
         return datafile
-
+    
     def save_existing(self, form, instance, commit=True):
         datafile = super(DataFileFormSet, self).save_existing(form,
                                                               instance,
@@ -423,25 +442,25 @@ class DataFileFormSet(BaseInlineFormSet):
 class ExperimentForm(forms.ModelForm):
     """
     This handles the complex experiment forms.
-
+    
     All internal datasets forms are prefixed with `dataset_`, and all
     internal dataset file fields are prefixed with `file_`. These
     are parsed out of the post data and added to the form as internal
     lists.
     """
     url = forms.CharField(required=False)
-
+    
     class Meta:
         model = models.Experiment
         exclude = ('authors', 'handle', 'approved', 'created_by')
-
+    
     def __init__(self, data=None, files=None, auto_id='%s', prefix=None,
                  initial=None, error_class=ErrorList, label_suffix=':',
                  empty_permitted=False, instance=None, extra=0):
         self.author_experiments = []
         self.datasets = {}
         self.dataset_files = {}
-
+        
         super(ExperimentForm, self).__init__(data=data,
                                              files=files,
                                              auto_id=auto_id,
@@ -451,7 +470,7 @@ class ExperimentForm(forms.ModelForm):
                                              error_class=error_class,
                                              label_suffix=label_suffix,
                                              empty_permitted=False)
-
+        
         def custom_field_cb(field):
             #if field.name == 'filename':
             #    return field.formfield(required=False)
@@ -459,14 +478,14 @@ class ExperimentForm(forms.ModelForm):
                 return field.formfield(widget=Span, required=False)
             else:
                 return field.formfield()
-
+        
         def custom_dataset_field_cb(field):
             if field.name == 'description':
                 return field.formfield(
                     widget=TextInput(attrs={'size': '80'}))
             else:
                 return field.formfield()
-
+        
         # initialise formsets
         if instance == None or instance.dataset_set.count() == 0:
             extra = 1
@@ -475,14 +494,14 @@ class ExperimentForm(forms.ModelForm):
             models.Dataset,
             formfield_callback=custom_dataset_field_cb,
             extra=extra, can_delete=True)
-
+        
         datafile_formset = inlineformset_factory(
             models.Dataset,
             models.Dataset_File,
             formset=DataFileFormSet,
             formfield_callback=custom_field_cb,
             extra=0, can_delete=True)
-
+        
         # fix up experiment form
         post_authors = self._parse_authors(data)
         self._fill_authors(post_authors)
@@ -495,7 +514,7 @@ class ExperimentForm(forms.ModelForm):
                 MultiValueCommaSeparatedField([author.fields['author'] for
                                             author in self.author_experiments],
                                             widget=CommaSeparatedInput())
-
+        
         # fill formsets
         self.datasets = dataset_formset(data=data,
                                         instance=instance,
@@ -507,11 +526,11 @@ class ExperimentForm(forms.ModelForm):
                     df.fields['description'].editable = False
                     df.fields['immutable'].editable = False
                     df.fields['immutable'].widget.attrs['readonly'] = True
-
+            
             self.dataset_files[i] = datafile_formset(data=data,
                                          instance=df.instance,
                                          prefix="ds-%s-datafile" % i)
-
+    
     def _parse_authors(self, data=None):
         """
         create a dictionary containing each of the sub form types.
@@ -523,7 +542,7 @@ class ExperimentForm(forms.ModelForm):
             authors = [a.strip() for a in
                        data.get('authors').split(',')]
         return authors
-
+    
     def _fill_authors(self, authors):
         if self.instance:
             o_author_experiments = \
@@ -540,16 +559,16 @@ class ExperimentForm(forms.ModelForm):
                                         'order': num},
                                   instance=o_ae)
             self.author_experiments.append(f)
-
+        
         self.fields['authors'] = \
             MultiValueCommaSeparatedField([author.fields['author'] for
                                         author in self.author_experiments],
                                         widget=CommaSeparatedInput())
-
+    
     def get_dataset_files(self, number):
         """
         Return a list of datafiles from a dataset
-
+        
         :param number: the dataset number as identified in the form.
         :type number: integer
         :rtype: list of :class:`~tardis.tardis_portal.models.Dataset_File`
@@ -557,33 +576,36 @@ class ExperimentForm(forms.ModelForm):
         if number in self.dataset_files:
             return self.dataset_files[number]
         return []
-
+    
     def get_datasets(self):
         """
         Return a tuple of datasets and associated dataset files.
-
+        
         :rtype: tuple containing
          a :class:`~tardis.tardis_portal.models.Dataset`and a
          list of :class:`~tardis.tardis_portal.models.Dataset_File`
         """
         for number, form in enumerate(self.datasets.forms):
             yield (form, self.get_dataset_files(number))
-
+    
     def save(self, commit=True):
         # remove m2m field before saving
         del self.cleaned_data['authors']
-
+        
+        user = User.objects.get(username=self.data['username'])
+        
         experiment = super(ExperimentForm, self).save(commit)
-
+        
         authors = []
         author_experiments = []
         datasets = []
         dataset_files = []
-
+        
         for ae in self.author_experiments:
             ae.instance.experiment = ae.instance.experiment
             o_ae = ae.save(commit=commit)
             author_experiments.append(o_ae)
+        
         for key, dataset in enumerate(self.datasets.forms):
             if dataset not in self.datasets.deleted_forms:
                 # XXX for some random reason the link between
@@ -597,41 +619,121 @@ class ExperimentForm(forms.ModelForm):
                 if 'immutable' in dataset.initial:
                     if dataset.initial['immutable']:
                         mutable = False
-
+                
                 if self.dataset_files[key] and mutable:
+                    folderpaths = []
+                    removefolderpaths = []
+                    staging = get_full_staging_path(\
+                        self.dataset_files[key].data['username'])
+                    
+                    # separate existing files/folders from new
+                    for df_form in self.dataset_files[key].forms:
+                        
+                        df_form_filepath = df_form.instance.url
+                        
+                        # crazy logic to work out if file exists
+                        # already or is wildcard entry
+                        # not sure if this breaks individual
+                        # file loading (if we're bringing back)
+                        if df_form_filepath == '':
+                            loop_df = df_form.save(False)
+                            
+                            df_form_filepath = loop_df.url
+                            
+                            folderpaths.append(df_form_filepath)
+                            removefolderpaths.append(df_form)
+                    
+                    # loop new folders and add files contained within
+                    for filepath in folderpaths:
+                        
+                        pathname = path.join(staging, filepath[:-2])
+                        
+                        filelist = None
+                        if path.isdir(pathname):
+                            
+                            filelist = listdir(pathname)
+                            
+                            filelist.sort()
+                        
+                        for filename in filelist:
+                            
+                            # fix for root path being added
+                            pre_url = filepath[:-2] + path.sep
+                            if pre_url == path.sep:
+                                pre_url = ''
+                            
+                            full_path = path.join(pathname, filename)
+                            if not path.isdir(full_path):
+                                if not basename(filename).startswith('.'):
+                                    
+                                    df = Dataset_File(\
+                                        dataset=\
+                                            o_dataset,
+                                        filename=\
+                                            basename(filename),
+                                        url=\
+                                            pre_url + filename,
+                                        protocol=\
+                                            'staging',
+                                        size=\
+                                            path.getsize(full_path))
+                                    
+                                    # append file to list for save
+                                    dataset_files.append(df)
+                    
+                    # remove the new folder entries from
+                    # list before a 'normal' modelform save
+                    for df_form in removefolderpaths:
+                        self.dataset_files[key].forms.remove(df_form)
+                    
+                    # 'normal' modelform save
                     o_df = self.dataset_files[key].save(commit)
                     dataset_files += o_df
-
+        
         if hasattr(self.datasets, 'deleted_forms'):
             for ds in self.datasets.deleted_forms:
                 if not ds.instance.immutable:
                     ds.instance.delete()
-
+        
         if hasattr(self.dataset_files, 'deleted_forms'):
             for df in self.dataset_files.deleted_forms:
                 if not ds.instance.immutable:
                     df.instance.delete()
-
-        return FullExperimentModel({'experiment': experiment,
+        
+        full_experiment = FullExperimentModel({'experiment': experiment,
                                     'author_experiments': author_experiments,
                                     'authors': authors,
                                     'datasets': datasets,
                                     'dataset_files': dataset_files})
-
+        
+        experiment = full_experiment['experiment']
+        experiment.created_by = user
+        for df in full_experiment['dataset_files']:
+            
+            # grischa's fix for assigning correct new file paths
+            if not df.url.startswith(path.sep):
+                if df.protocol == "staging":
+                    df.url = path.join(get_full_staging_path(
+                                        user.username),
+                                        df.url)
+        full_experiment.save_m2m()
+        
+        return full_experiment
+    
     def is_valid(self):
         """
         Test the validity of the form, the form may be invalid even if the
         error attribute has no contents. This is because the returnd value
         is dependent on the validity of the nested forms.
-
+        
         This validity also takes into account forign keys that might be
         dependent on an unsaved model.
-
+        
         :rtype: bool
         """
         if self.is_bound and bool(self.errors):
             return not bool(self.errors)
-
+        
         # TODO since this is a compound field, this should merge the errors
         for ae in self.author_experiments:
             for name, error in ae.errors.items():
@@ -639,7 +741,7 @@ class ExperimentForm(forms.ModelForm):
                     continue
                 if ae.is_bound and bool(ae.errors[name]):
                     return False
-
+        
         for dataset, files in self.get_datasets():
             for name, error in dataset.errors.items():
                 if isinstance(dataset.fields[name], ModelChoiceField):
@@ -650,12 +752,12 @@ class ExperimentForm(forms.ModelForm):
 
 
 def createSearchDatafileForm(searchQueryType):
-
+    
     from errors import UnsupportedSearchQueryTypeError
     from tardis.tardis_portal.models import ParameterName
-
+    
     parameterNames = None
-
+    
     if searchQueryType in models.Schema.getSubTypes():
         parameterNames = \
             ParameterName.objects.filter(
@@ -663,14 +765,14 @@ def createSearchDatafileForm(searchQueryType):
             models.Schema.DATAFILE, searchQueryType) +
             models.Schema.getNamespaces(models.Schema.DATASET,
             searchQueryType), is_searchable='True')
-
+        
         fields = {}
-
+        
         fields['filename'] = forms.CharField(label='Filename',
                 max_length=100, required=False)
         fields['type'] = forms.CharField(widget=forms.HiddenInput,
                 initial=searchQueryType)
-
+        
         for parameterName in parameterNames:
             fieldName = parameterName.getUniqueShortName()
             if parameterName.data_type == ParameterName.NUMERIC:
@@ -700,7 +802,7 @@ def createSearchDatafileForm(searchQueryType):
                     fields[fieldName] = \
                         forms.CharField(label=parameterName.full_name,
                         max_length=255, required=False)
-
+        
         return type('SearchDatafileForm', (forms.BaseForm, ),
                     {'base_fields': fields})
     else:
@@ -710,12 +812,12 @@ def createSearchDatafileForm(searchQueryType):
 
 
 def createSearchExperimentForm():
-
+    
     from django.forms.extras.widgets import SelectDateWidget
     from tardis.tardis_portal.models import ParameterName
-
+    
     fields = {}
-
+    
     fields['title'] = forms.CharField(label='Title',
             max_length=20, required=False)
     fields['description'] = forms.CharField(label='Experiment Description',
@@ -726,11 +828,11 @@ def createSearchExperimentForm():
             max_length=20, required=False)
     fields['date'] = forms.DateTimeField(label='Experiment Date',
             widget=SelectDateWidget(), required=False)
-
-    fieldsets = [('main fields', {'fields': ['title', 'description', 'institutionName', 'creator', 'date']})] 
-
+    
+    fieldsets = [('main fields', {'fields': ['title', 'description', 'institutionName', 'creator', 'date']})]
+    
     schemaAndFieldLists = []
-
+    
     experimentSchemata = models.Schema.objects.filter(type=models.Schema.EXPERIMENT)
     for schema in experimentSchemata:
         searchableParameterNames = \
@@ -770,13 +872,13 @@ def createSearchExperimentForm():
                         forms.CharField(label=parameterName.full_name,
                         max_length=255, required=False)
                 fieldNames.append(fieldName)
-
-
+    
+    
     for schema, fieldlist in schemaAndFieldLists:
         name = schema.name if schema.name != None else 'No schema name'
         if fieldlist:
             fieldsets.append((name, {'fields': fieldlist}))
-
+    
     return type('SearchExperimentForm', (formutils.BetterBaseForm, forms.BaseForm, ),
                     {'base_fields': fields, 'base_fieldsets': fieldsets,
                      'base_row_attrs': {}})
@@ -785,37 +887,37 @@ def createSearchExperimentForm():
 def __getParameterChoices(choicesString):
     """Handle the choices string in this format:
     '(hello:hi how are you), (yes:i am here), (no:joe)'
-
+    
     Note that this parser is very strict and is not smart enough to handle
     any extra unknown characters that the user might put in the choices
     textbox.
-
+    
     """
-
+    
     import string
     import re
     paramChoices = ()
-
+    
     # we'll always add '-' as the default value for a dropdown menu just
     # incase the user doesn't specify a value they'd like to search for
     paramChoices += (('-', '-'),)
     dropDownEntryPattern = re.compile(r'\((.*):(.*)\)')
-
+    
     dropDownEntryStrings = string.split(choicesString, ',')
     for dropDownEntry in dropDownEntryStrings:
         dropDownEntry = string.strip(dropDownEntry)
         (key, value) = dropDownEntryPattern.search(dropDownEntry).groups()
         paramChoices += ((str(key), str(value)),)
-
+    
     return paramChoices
 
 
 def createSearchDatafileSelectionForm(initial=None):
-
+    
     supportedDatafileSearches = (('-', 'Datafile'),)
     for key in models.Schema.getSubTypes():
         supportedDatafileSearches += ((key, key.upper()),)
-
+    
     fields = {}
     fields['type'] = \
         forms.CharField(label='type',
@@ -827,16 +929,16 @@ def createSearchDatafileSelectionForm(initial=None):
 
 
 class NoInput(forms.Widget):
-
+    
     def render(self, name, value, attrs=None):
         from django.utils.safestring import mark_safe
         return mark_safe(value)
 
 
 class StaticField(forms.Field):
-
+    
     widget = NoInput
-
+    
     def clean(self, value):
         return
 
@@ -844,25 +946,25 @@ class StaticField(forms.Field):
 def create_parameterset_edit_form(
     parameterset,
     request=None):
-
+    
     from tardis.tardis_portal.models import ParameterName
-
+    
     # if POST data to save
     if request:
         from django.utils.datastructures import SortedDict
         fields = SortedDict()
-
+        
         for key, value in sorted(request.POST.iteritems()):
-
+            
             x = 1
-
+            
             stripped_key = key.replace('_s47_', '/')
             stripped_key = stripped_key.rpartition('__')[0]
-
+            
             parameter_name = ParameterName.objects.get(
                 schema=parameterset.schema,
                 name=stripped_key)
-
+            
             units = ""
             if parameter_name.units:
                 units = " (" + parameter_name.units + ")"
@@ -882,30 +984,30 @@ def create_parameterset_edit_form(
                         forms.CharField(label=parameter_name.full_name + units,
                                         max_length=255, required=False,
                                         initial=value)
-
+        
         return type('DynamicForm', (forms.BaseForm, ), {'base_fields': fields})
-
+    
     else:
         from django.utils.datastructures import SortedDict
         fields = SortedDict()
         psm = ParameterSetManager(parameterset=parameterset)
-
+        
         for dfp in psm.parameters:
-
+            
             x = 1
-
+            
             form_id = dfp.name.name + "__" + str(x)
-
+            
             while form_id in fields:
                 x = x + 1
                 form_id = dfp.name.name + "__" + str(x)
-
+            
             units = ""
             if dfp.name.units:
                 units = " (" + dfp.name.units + ")"
-
+            
             form_id = form_id.replace('/', '_s47_')
-
+            
             if dfp.name.isNumeric():
                 fields[form_id] = \
                     forms.DecimalField(label=dfp.name.full_name + units,
@@ -917,64 +1019,64 @@ def create_parameterset_edit_form(
                                     max_length=255,
                                     required=False,
                                     initial=dfp.string_value)
-                
+            
             else:
                 fields[form_id] = \
                     forms.CharField(label=dfp.name.full_name + units,
                                     max_length=255,
                                     required=False,
                                     initial=dfp.string_value)
-
+            
             if dfp.name.immutable or dfp.name.schema.immutable:
                 fields[form_id].widget.attrs['readonly'] = True
                 fields[form_id].label = \
                     fields[form_id].label + " (read only)"
-
+        
         return type('DynamicForm', (forms.BaseForm, ),
                     {'base_fields': fields})
 
 
 def save_datafile_edit_form(parameterset, request):
-
+    
     psm = ParameterSetManager(parameterset=parameterset)
-
+    
     psm.delete_all_params()
-
+    
     for key, value in sorted(request.POST.iteritems()):
         if value:
             stripped_key = key.replace('_s47_', '/')
             stripped_key = stripped_key.rpartition('__')[0]
-
+            
             psm.new_param(stripped_key, value)
 
 
 def create_datafile_add_form(
     schema, parentObject,
     request=None):
-
+    
     from tardis.tardis_portal.models import ParameterName
-
+    
     # if POST data to save
     if request:
         from django.utils.datastructures import SortedDict
         fields = SortedDict()
-
+        
         for key, value in sorted(request.POST.iteritems()):
-
+            
             x = 1
-
+            
             stripped_key = key.replace('_s47_', '/')
             stripped_key = stripped_key.rpartition('__')[0]
-
+            
             parameter_name = ParameterName.objects.get(
                 schema__namespace=schema,
                 name=stripped_key)
-
+            
             if parameter_name.immutable == False:
                 units = ""
                 if parameter_name.units:
                     units = " (" + parameter_name.units + ")"
-
+                
                 # if not valid, spit back as exact
                 if parameter_name.isNumeric():
                     fields[key] = \
@@ -990,33 +1092,33 @@ def create_datafile_add_form(
                                         max_length=255, required=False,
                                         initial=value,
                                         )
-
+        
         return type('DynamicForm', (forms.BaseForm, ), {'base_fields': fields})
-
+    
     else:
         from django.utils.datastructures import SortedDict
         fields = SortedDict()
-
+        
         parameternames = ParameterName.objects.filter(
             schema__namespace=schema,
             immutable=False).order_by('name')
-
+        
         for dfp in parameternames:
-
+            
             x = 1
-
+            
             form_id = dfp.name + "__" + str(x)
-
+            
             while form_id in fields:
                 x = x + 1
                 form_id = dfp.name + "__" + str(x)
-
+            
             units = ""
             if dfp.units:
                 units = " (" + dfp.units + ")"
-
+            
             form_id = form_id.replace('/', '_s47_')
-
+            
             if dfp.isNumeric():
                 fields[form_id] = \
                 forms.DecimalField(label=dfp.full_name + units,
@@ -1027,21 +1129,21 @@ def create_datafile_add_form(
                 fields[form_id] = \
                 forms.CharField(label=dfp.full_name + units,
                 max_length=255, required=False)
-
+        
         return type('DynamicForm', (forms.BaseForm, ),
             {'base_fields': fields})
 
 
 def save_datafile_add_form(schema, parentObject, request):
-
+    
     psm = ParameterSetManager(schema=schema,
         parentObject=parentObject)
-
+    
     for key, value in sorted(request.POST.iteritems()):
         if value:
             stripped_key = key.replace('_s47_', '/')
             stripped_key = stripped_key.rpartition('__')[0]
-
+            
             psm.new_param(stripped_key, value)
 
 class RawSearchForm(SearchForm):
@@ -1053,5 +1155,5 @@ class RawSearchForm(SearchForm):
         sqs = self.searchqueryset.facet('experiment_id_stored').raw_search(query, end_offset=1)
         if self.load_all:
             sqs = sqs.load_all()
-
+        
         return sqs
