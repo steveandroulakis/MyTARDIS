@@ -106,22 +106,28 @@ class DiffractionImageFilter(object):
         :param created: A boolean; True if a new record was created.
         :type created: bool
         """
+	print 'kwargs is'
+	print kwargs
         instance = kwargs.get('instance')
         created = kwargs.get('created')
         if not created:
             # Don't extract on edit
             return
         schema = self.getSchema()
+	logger.debug('instance type is..')
+	logger.debug(instance)
         filepath = instance.get_absolute_filepath()
         if not filepath:
-            # TODO log that exited early
+	    logger.debug('no filepath returned..')
             return None
 
         if not path.exists(filepath):
+            logger.debug('filepath ' + filepath + ' doesn\'t appear to exist')
             return None
         
         try:
             metadata = self.getDiffractionImageMetadata(filepath)
+	    logger.debug('Diffraction metadata returned:\n')
             self.saveDiffractionImageMetadata(instance, schema, metadata)
         except Exception, e:
             logger.debug(e)
@@ -324,6 +330,9 @@ class DiffractionImageFilter(object):
         return output
 
 def make_filter(name='', schema='', tagsToFind=[], tagsToExclude=[]):
+    logger.debug('make_filter called for diffractionimage')
+    logger.debug(name)
+    logger.debug(schema)
     if not name:
         raise ValueError("DiffractionImageFilter "
                          "requires a name to be specified")
