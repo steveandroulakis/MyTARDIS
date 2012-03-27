@@ -143,6 +143,20 @@ def stage_file(datafile):
     :param datafile: a datafile to be staged
     :type datafile: :class:`tardis.tardis_portal.models.Dataset_File`
     """
+
+    from django.utils.importlib import import_module
+    modules = settings.FILTER_MIDDLEWARE
+    for filter_module, filter_class in modules:
+        try:
+            # import filter middleware
+	    logging.getLogger(__name__).debug('Importing filter %s' % (filter_module))
+            filter_middleware = import_module(filter_module)
+            filter_init = getattr(filter_middleware, filter_class)
+            # initialise filter
+            filter_init()
+        except ImportError, e:
+            logging.getLogger(__name__).error('Error importing filter %s: "%s"' % (module, e) )
+
     dataset_path = datafile.dataset.get_absolute_filepath()
     copyfrom = datafile.url
 
