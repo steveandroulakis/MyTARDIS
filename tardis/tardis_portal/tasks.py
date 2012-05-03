@@ -35,8 +35,8 @@ class SaveExperiment(Task):
                     full_experiment.create_default_ACL(user)
                     
                     subject = 'Experiment Creation Successful'
-                    body = 'MyTardis/Squirrel has successfully created your experiment. ' + \
-                    '\nAccess it here: http://squirrel.its.monash.edu.au/experiment/view/' + \
+                    body = 'MyTardis has successfully created your experiment. ' + \
+                    '\nAccess it here: http://mytardis.its.monash.edu.au/experiment/view/' + \
                     str(full_experiment['experiment'].id) + '/'
                     to = [user.email,]
                     
