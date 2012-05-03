@@ -156,6 +156,11 @@ display_urls = patterns(
      'display_datafile_image'),
     )
 
+download_deprec_urls = patterns(
+    'tardis.tardis_portal.download_deprec',
+    (r'^download/datafile/ws/$', 'download_datafile_ws'),
+    )
+
 apppatterns = patterns('',)
 for app in getTardisApps():
     apppatterns += patterns('tardis.apps',
@@ -166,6 +171,7 @@ urlpatterns = patterns(
     # (r'^search/quick/$', 'tardis.tardis_portal.views.search_quick'),
     '',
     (r'', include(core_urls)),
+    (r'', include(download_deprec_urls)),
     # Experiment Views
     (r'^experiment/', include(experiment_urls)),
 
