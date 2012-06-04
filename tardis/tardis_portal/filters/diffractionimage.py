@@ -41,6 +41,9 @@ import logging
 from tardis.tardis_portal.models import Schema, DatafileParameterSet
 from tardis.tardis_portal.models import ParameterName, DatafileParameter
 import subprocess
+import tempfile
+import base64
+from os import path
 
 logger = logging.getLogger(__name__)
 
@@ -60,13 +63,14 @@ class DiffractionImageFilter(object):
     :param tagsToExclude: a list of the tags to exclude.
     :type tagsToExclude: list of strings
     """
-    def __init__(self, name, schema, diffdump_path,
+    def __init__(self, name, schema, diffdump_path, diff2jpeg_path,
                  tagsToFind=[], tagsToExclude=[]):
         self.name = name
         self.schema = schema
         self.tagsToFind = tagsToFind
         self.tagsToExclude = tagsToExclude
         self.diffdump_path = diffdump_path
+        self.diff2jpeg_path = diff2jpeg_path
 
         #these values map across directly
         self.terms = \
@@ -122,6 +126,12 @@ class DiffractionImageFilter(object):
         
         try:
             metadata = self.getDiffractionImageMetadata(filepath)
+            
+            previewImage64 = self.getDiffractionPreviewImage(filepath)
+            
+            if previewImage64:
+                metadata['previewImage'] = previewImage64
+            
             self.saveDiffractionImageMetadata(instance, schema, metadata)
         except Exception, e:
             logger.debug(e)
@@ -231,6 +241,17 @@ class DiffractionImageFilter(object):
         for tag in tags:
             ret[tag['key']] = tag['value']
         return ret
+        
+    def getDiffractionPreviewImage(self, filename):
+        """Return a base64 encoded preview image.
+        """
+        try:
+            previewImage64 = self.run_diff2jpeg(filename)
+            
+            return previewImage64
+
+        except IOError:
+            return None
 
     def parse_term(self, line):
         return line.split(':')[0].replace(' ', '')
@@ -322,6 +343,32 @@ class DiffractionImageFilter(object):
                             shell=True).stdout
 
         return output
+        
+    def run_diff2jpeg(self, filename):
+        split_diff2jpeg_path = self.diff2jpeg_path.rsplit('/', 1)
+        cd = split_diff2jpeg_path[0]
+        diff2jpeg_exec = split_diff2jpeg_path[1]
+
+        tf = tempfile.NamedTemporaryFile()
+
+        cmd = "cd '" + cd + "'; ./'" + diff2jpeg_exec + "' '" + filename + "' '" + tf.name + "'"
+
+        p = subprocess.Popen(
+                            cmd,
+                            stdout=subprocess.PIPE,
+                            shell=True)
+
+        p.wait()
+
+        result_str = p.stdout.read()
+
+        encoded = None
+        if not result_str.startswith('Exception'):
+            read = tf.read()
+            encoded = base64.b64encode(read)
+        
+        tf.close()
+        return encoded       
 
 def make_filter(name='', schema='', tagsToFind=[], tagsToExclude=[]):
     if not name:

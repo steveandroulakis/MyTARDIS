@@ -859,8 +859,11 @@ def _getParameter(parameter):
             elif parset == 'ExperimentParameterSet':
                 viewname = 'tardis.tardis_portal.views.load_experiment_image'
             if viewname:
-                value = "<img src='%s' />" % reverse(viewname=viewname,
-                                                     args=[parameter.id])
+                value = "<a href='%s' target='_blank'><img style='height: 600px' src='%s' /></a>" % \
+                     (reverse(viewname=viewname,
+                     args=[parameter.id]),
+                     reverse(viewname=viewname,
+                     args=[parameter.id]))
                 return mark_safe(value)
         else:
             return parameter.string_value
