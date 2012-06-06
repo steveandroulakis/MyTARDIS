@@ -28,3 +28,12 @@ def get_utc_time(dt):
     if (dt.tzinfo == None):
         dt = dt.replace(tzinfo=LOCAL_TZ)
     return dt.astimezone(pytz.utc)
+
+#fix
+def get_local_time_naive(dt):
+    '''
+    Ensure datetime is timezone-naive and in local time.
+    '''
+    return get_local_time(dt).replace(tzinfo=None)
+
+
