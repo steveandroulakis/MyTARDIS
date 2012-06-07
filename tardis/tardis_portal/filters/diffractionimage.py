@@ -111,19 +111,11 @@ class DiffractionImageFilter(object):
         :type created: bool
         """
         instance = kwargs.get('instance')
-        created = kwargs.get('created')
-        if not created:
-            # Don't extract on edit
-            return
-        schema = self.getSchema()
-        filepath = instance.get_absolute_filepath()
-        if not filepath:
-            # TODO log that exited early
-            return None
 
-        if not path.exists(filepath):
-            return None
-        
+        schema = self.getSchema()
+
+        filepath = instance.get_absolute_filepath()
+ 
         try:
             metadata = self.getDiffractionImageMetadata(filepath)
             
@@ -336,7 +328,8 @@ class DiffractionImageFilter(object):
         diffdump_exec = split_diffdump_path[1]
 
         cmd = "cd '" + cd + "'; ./'" + diffdump_exec + "' '" + file_path + "'"
-
+	with open("test2.txt", "a") as myfile:
+            myfile.write(cmd)
         output = subprocess.Popen(
                             cmd,
                             stdout=subprocess.PIPE,
