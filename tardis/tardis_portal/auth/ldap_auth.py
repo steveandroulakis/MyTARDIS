@@ -145,9 +145,20 @@ class LDAPBackend(AuthProvider, UserProvider, GroupProvider):
                 # check if the given username in combination with the LDAP
                 # auth method is already in the UserAuthentication table
                 user = ldap_result[0][1]
-                return {'display': user['givenName'][0],
-                        "id": user['uid'][0],
-                        "email": user['mail'][0]}
+
+		try:
+			display_ldap = user['givenName'][0]
+			id_ldap = user['uid'][0]
+			email_ldap = user['mail'][0]
+
+                	return {'display': display_ldap,
+                        	"id": id_ldap,
+                        	"email": email_ldap}
+		except:
+			return {'display': '',
+				'id': username,
+				'email': ''}
+
             return None
 
         except ldap.LDAPError:

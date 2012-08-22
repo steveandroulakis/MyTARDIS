@@ -41,6 +41,9 @@ import logging
 from tardis.tardis_portal.models import Schema, DatafileParameterSet
 from tardis.tardis_portal.models import ParameterName, DatafileParameter
 import subprocess
+import tempfile
+import base64
+from os import path
 
 logger = logging.getLogger(__name__)
 
@@ -60,13 +63,14 @@ class DiffractionImageFilter(object):
     :param tagsToExclude: a list of the tags to exclude.
     :type tagsToExclude: list of strings
     """
-    def __init__(self, name, schema, diffdump_path,
+    def __init__(self, name, schema, diffdump_path, diff2jpeg_path,
                  tagsToFind=[], tagsToExclude=[]):
         self.name = name
         self.schema = schema
         self.tagsToFind = tagsToFind
         self.tagsToExclude = tagsToExclude
         self.diffdump_path = diffdump_path
+        self.diff2jpeg_path = diff2jpeg_path
 
         #these values map across directly
         self.terms = \
@@ -106,34 +110,26 @@ class DiffractionImageFilter(object):
         :param created: A boolean; True if a new record was created.
         :type created: bool
         """
-	print 'kwargs is'
-	print kwargs
         instance = kwargs.get('instance')
-        created = kwargs.get('created')
-        if not created:
-            # Don't extract on edit
-            return
-        schema = self.getSchema()
-	logger.debug('instance type is..')
-	logger.debug(instance)
-        filepath = instance.get_absolute_filepath()
-        if not filepath:
-	    logger.debug('no filepath returned..')
-            return None
 
-        if not path.exists(filepath):
-            logger.debug('filepath ' + filepath + ' doesn\'t appear to exist')
-            return None
-        
+        schema = self.getSchema()
+
+        filepath = instance.get_absolute_filepath()
+ 
         try:
             metadata = self.getDiffractionImageMetadata(filepath)
-	    logger.debug('Diffraction metadata returned:\n')
+            
+            previewImage64 = self.getDiffractionPreviewImage(filepath)
+            
+            if previewImage64:
+                metadata['previewImage'] = previewImage64
+            
             self.saveDiffractionImageMetadata(instance, schema, metadata)
         except Exception, e:
             logger.debug(e)
             return None
 
-    def saveDiffractionImageMetadata(self, instance, schema, metadata):
+    def saveDiffractionImageMetadata(self, instance, schema, metadata, overwrite=False):
         """Save all the metadata to a Dataset_Files paramamter set.
         """
         parameters = self.getParameters(schema, metadata)
@@ -143,11 +139,17 @@ class DiffractionImageFilter(object):
         try:
             ps = DatafileParameterSet.objects.get(schema=schema,
                                                   dataset_file=instance)
-            return ps  # if already exists then just return it
+            if not overwrite:
+                return ps  # if already exists then just return it
+            
+            ps.delete()
+            
         except DatafileParameterSet.DoesNotExist:
-            ps = DatafileParameterSet(schema=schema,
-                                      dataset_file=instance)
-            ps.save()
+            pass
+
+        ps = DatafileParameterSet(schema=schema,
+                                  dataset_file=instance)
+        ps.save()
 
         for p in parameters:
             if p.name in metadata:
@@ -237,6 +239,17 @@ class DiffractionImageFilter(object):
         for tag in tags:
             ret[tag['key']] = tag['value']
         return ret
+        
+    def getDiffractionPreviewImage(self, filename):
+        """Return a base64 encoded preview image.
+        """
+        try:
+            previewImage64 = self.run_diff2jpeg(filename)
+            
+            return previewImage64
+
+        except IOError:
+            return None
 
     def parse_term(self, line):
         return line.split(':')[0].replace(' ', '')
@@ -321,18 +334,42 @@ class DiffractionImageFilter(object):
         diffdump_exec = split_diffdump_path[1]
 
         cmd = "cd '" + cd + "'; ./'" + diffdump_exec + "' '" + file_path + "'"
-
+	with open("test2.txt", "a") as myfile:
+            myfile.write(cmd)
         output = subprocess.Popen(
                             cmd,
                             stdout=subprocess.PIPE,
                             shell=True).stdout
 
         return output
+        
+    def run_diff2jpeg(self, filename):
+        split_diff2jpeg_path = self.diff2jpeg_path.rsplit('/', 1)
+        cd = split_diff2jpeg_path[0]
+        diff2jpeg_exec = split_diff2jpeg_path[1]
+
+        tf = tempfile.NamedTemporaryFile()
+
+        cmd = "cd '" + cd + "'; ./'" + diff2jpeg_exec + "' '" + filename + "' '" + tf.name + "'"
+
+        p = subprocess.Popen(
+                            cmd,
+                            stdout=subprocess.PIPE,
+                            shell=True)
+
+        p.wait()
+
+        result_str = p.stdout.read()
+
+        encoded = None
+        if not result_str.startswith('Exception'):
+            read = tf.read()
+            encoded = base64.b64encode(read)
+        
+        tf.close()
+        return encoded       
 
 def make_filter(name='', schema='', tagsToFind=[], tagsToExclude=[]):
-    logger.debug('make_filter called for diffractionimage')
-    logger.debug(name)
-    logger.debug(schema)
     if not name:
         raise ValueError("DiffractionImageFilter "
                          "requires a name to be specified")

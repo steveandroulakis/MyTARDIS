@@ -28,6 +28,8 @@ try:
     IMAGEMAGICK_AVAILABLE = True
 except AttributeError:
     IMAGEMAGICK_AVAILABLE = False
+except ImportError:
+    IMAGEMAGICK_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
