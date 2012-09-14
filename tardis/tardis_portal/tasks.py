@@ -79,7 +79,8 @@ def create_staging_datafiles(files, user_id, dataset_id):
 
         for dirname, dirnames, filenames in os.walk(dir):
             for filename in filenames:
-                 file_list.append(os.path.join(dirname, filename))
+                 if not filename.startswith('.'):
+                     file_list.append(os.path.join(dirname, filename))
 
         return file_list
 
@@ -93,6 +94,9 @@ def create_staging_datafiles(files, user_id, dataset_id):
             abs_path = staging
         else:
             abs_path = path.join(staging, f)
+
+        if(path.basename(abs_path).startswith('.')):
+            continue
 
         if path.isdir(abs_path):
             stage_files = stage_files + list_dir(abs_path)
