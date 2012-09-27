@@ -77,8 +77,6 @@ AUTH_PROVIDERS = (('localdb', 'Local DB',
                   'tardis.tardis_portal.auth.localdb_auth.DjangoAuthBackend'),
                   ('vbl', 'VBL',
                    'tardis.tardis_portal.tests.mock_vbl_auth.MockBackend'),
-                  ('ldap', 'LDAP',
-                   'tardis.tardis_portal.auth.ldap_auth.ldap_auth'),
 )
 
 NEW_USER_INITIAL_GROUPS = ['test-group']
@@ -252,3 +250,4 @@ REMOTE_SERVER_CREDENTIALS = [
     # Just one server for tests
     ('http://localhost:4272/', 'username', 'password')
 ]
+
