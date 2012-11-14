@@ -225,16 +225,37 @@ class Dataset_File(models.Model):
                 preview_image_par = dps[0]
 
         if preview_image_par:
+
+            import os
             file_path = path.abspath(path.join(settings.FILE_STORE_PATH,
                                                preview_image_par.string_value))
 
+            if not os.path.isfile(file_path):
+
+                from .experiment import Experiment
+
+                experiment_dataset = Experiment.objects.filter(\
+                    id=experiment.id,
+                    datasets__in=[self.dataset.id])
+
+                for experiment in experiment_dataset:
+
+                    test_path = path.abspath(path.join(settings.FILE_STORE_PATH,
+                                                experiment.id,
+                                                preview_image_par.string_value))
+
+                    if os.path.isfile(test_path):
+
+                        file_path = test_path
+
             from django.core.servers.basehttp import FileWrapper
             preview_image_file = file(file_path)
-            
+
             return preview_image_file
-            
+
         else:
             return None
+
 
     def is_public(self):
         from .experiment import Experiment

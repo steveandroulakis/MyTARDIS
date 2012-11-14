@@ -206,14 +206,16 @@ def site_settings(request):
 
 @never_cache
 def load_image(request, parameter):
-    file_path = path.abspath(path.join(settings.FILE_STORE_PATH,
+    try:
+        file_path = path.abspath(path.join(settings.FILE_STORE_PATH,
                                        parameter.string_value))
-
-    from django.core.servers.basehttp import FileWrapper
-    wrapper = FileWrapper(file(file_path))
-    return HttpResponse(wrapper, mimetype=parameter.name.units)
-
-
+        with open(file_path) as f:
+            from django.core.servers.basehttp import FileWrapper
+            wrapper = FileWrapper(file(file_path))
+            return HttpResponse(wrapper, mimetype=parameter.name.units)
+    except IOError as e:
+        related_experiments = authz.get_accessible_experiments_for_dataset(request,
+            parameter.parameterset.dataset_file.dataset.id)
 
 def load_experiment_image(request, parameter_id):
     parameter = ExperimentParameter.objects.get(pk=parameter_id)
