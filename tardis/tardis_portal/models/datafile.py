@@ -235,13 +235,12 @@ class Dataset_File(models.Model):
                 from .experiment import Experiment
 
                 experiment_dataset = Experiment.objects.filter(\
-                    id=self.id,
                     datasets__in=[self.dataset.id])
 
                 for experiment in experiment_dataset:
 
                     test_path = path.abspath(path.join(settings.FILE_STORE_PATH,
-                                                experiment.id,
+                                                str(experiment.id),
                                                 preview_image_par.string_value))
 
                     if os.path.isfile(test_path):
