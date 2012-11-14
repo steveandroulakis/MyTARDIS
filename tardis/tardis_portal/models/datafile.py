@@ -235,7 +235,7 @@ class Dataset_File(models.Model):
                 from .experiment import Experiment
 
                 experiment_dataset = Experiment.objects.filter(\
-                    id=experiment.id,
+                    id=self.id,
                     datasets__in=[self.dataset.id])
 
                 for experiment in experiment_dataset:
