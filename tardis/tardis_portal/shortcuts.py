@@ -1,6 +1,4 @@
-import json
-import re
-import json, string, cgi
+import json, string, cgi, re
 
 from django.conf import settings
 from django.core.urlresolvers import reverse
