@@ -101,7 +101,8 @@ from tardis.tardis_portal.auth import decorators as authz
 from tardis.tardis_portal.auth import auth_service
 from tardis.tardis_portal.shortcuts import render_response_index, \
     return_response_error, return_response_not_found, \
-    render_response_search, get_experiment_referer
+    render_response_search, render_error_message, \
+    get_experiment_referer
 from tardis.tardis_portal.metsparser import parseMets
 from tardis.tardis_portal.creativecommonshandler import CreativeCommonsHandler
 from tardis.tardis_portal.hacks import oracle_dbops_hack
@@ -996,7 +997,8 @@ def register_experiment_ws_xmldata(request):
                 received_remote.send(sender=Experiment,
                         instance=e,
                         uid=origin_id,
-                        from_url=from_url)
+                        from_url=from_url,
+                        sync_path=sync_path)
 
             response = HttpResponse(str(sync_path), status=200)
             response['Location'] = request.build_absolute_uri(
