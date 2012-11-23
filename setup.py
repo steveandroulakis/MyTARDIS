@@ -28,8 +28,8 @@ setup(
         'django-form-utils',
         'django-haystack',
         'django-bootstrap-form',
-        'celery',           # Delayed tasks and queues
-        'django-celery',
+        'celery==2.5.5',           # Delayed tasks and queues
+        'django-celery==2.5.5',
         'django-kombu',
         'pysolr',
         'beautifulsoup4',
@@ -47,6 +47,7 @@ setup(
         ],
     dependency_links = [
         'https://github.com/dahlia/wand/tarball/warning-bugfix#egg=Wand-0.1.10',
+        'https://github.com/UQ-CMM-Mirage/django-celery/tarball/2.5#egg=django-celery-2.5.5',
         'https://github.com/defunkt/pystache/tarball/v0.5.2#egg=pystache-0.5.2'
     ]
 )
