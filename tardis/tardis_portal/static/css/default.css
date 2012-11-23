@@ -57,7 +57,7 @@ form .dataset-download-box {
 
 div.copylink {
     font-weight:bold;
-    padding: 7px;    
+    padding: 7px;
     margin: 5px;
     border: 1px solid #CCCCCC;
     border-radius: 3px 3px 3px 3px;
@@ -71,9 +71,9 @@ div.copylink {
 
 /*override for bootstrap nav pills*/
 .nav-pills > .active > a, .nav-pills > .active > a:hover {
-    background-color: #D3DFE6;
+    background-color: #ddf7b0;
     font-weight: bold;
-    color: #0088CC;
+    color: #3e5c49;
 }
 
 .dataset-link {
@@ -115,4 +115,70 @@ div.copylink {
 .brand a:hover {
     color: white;
     text-decoration: none;
+}
+
+.brand a {
+  color: #d6d69f;
+}
+
+.navbar {
+    border-top: 2px solid #e6e87b;
+}
+
+.navbar-inner {
+    background-image: -webkit-linear-gradient(top, #a2a350, #304f3c);
+    background-image: -o-linear-gradient(top, #a2a350, #304f3c);
+    background-image: linear-gradient(top, #a2a350, #304f3c);
+}
+
+.navbar .nav .active > a, .navbar .nav .active > a:hover {
+    color: white;
+    text-decoration: none;
+    background-color: #304f3c;
+}
+
+.navbar .nav > li > a {
+  color: #d6d69f;
+}
+
+.btn-info {
+  background-color: #a2a350;
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#a2a350), to(#304f3c));
+}
+
+.btn-info:hover {
+  background-color: #a2a350;
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#e6e87b), to(#a2a350));
+}
+
+a {
+  color: #3e5c49;
+}
+
+.btn-primary {
+  background-color: #304f3c;
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#a2a350), to(#304f3c));
+  border-color: #304f3c;
+}
+
+.btn-primary:hover {
+  background-color: #304f3c;
+}
+
+.label-info, .badge-info {
+  background-color: #304f3c;
+}
+
+.dropdown-menu li > a:hover, .dropdown-menu .active > a, .dropdown-menu .active > a:hover {
+  background-color: #304f3c;
+}
+
+.alert-info {
+  border-color: #a2a350;
+  color: #304f3c;
+  background-color: #ddf7b0;
+}
+
+body {
+  background-color: #edfaf2;
 }
