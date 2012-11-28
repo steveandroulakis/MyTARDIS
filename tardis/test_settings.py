@@ -41,7 +41,7 @@ FILE_STORE_PATH = path.abspath(path.join(path.dirname(__file__),
 STAGING_PATH = path.abspath(path.join(path.dirname(__file__),
                                       "../var/test/staging/"))
 SYNC_TEMP_PATH = path.abspath(path.join(path.dirname(__file__),
-                                        '../var/test/sync/'))
+    '../var/sync/')).replace('\\', '/')
 
 STAGING_PROTOCOL = 'localdb'
 STAGING_MOUNT_PREFIX = 'smb://localhost/staging/'
@@ -185,6 +185,9 @@ MODULE_LOG_MAXBYTES = 0
 UPLOADIFY_PATH = '%s/%s' % (STATIC_URL, 'js/uploadify/')
 UPLOADIFY_UPLOAD_PATH = '%s/%s' % (MEDIA_URL, 'uploads/')
 
+DOWNLOAD_ARCHIVE_SIZE_LIMIT = 0
+DOWNLOAD_SPACE_SAFETY_MARGIN = 8388608
+
 DEFAULT_INSTITUTION = "Monash University"
 
 IMMUTABLE_METS_DATASETS = True
@@ -230,21 +233,6 @@ OAIPMH_PROVIDERS = [
 
 
 djcelery.setup_loader()
-
-# tardis.apps.sync
-MYTARDIS_SITES_URL = 'http://localhost:8080/mytardis-sites.xml/'
-MYTARDIS_SITE_URL = 'http://localhost:8080/'
-SYNC_MANAGER = 'managers.default_manager'
-
-SYNC_CLIENT_KEYS = (
-        ('127.0.0.1', 'valid_client_key'),
-        )
-
-SYNC_CLIENT_KEY = 'valid_client_key'
-
-SYNC_ADMINS = ( 'syncadmin@localhost', )
-SERVER_EMAIL = 'transfers@localhost'
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 REMOTE_SERVER_CREDENTIALS = [
     # Just one server for tests
