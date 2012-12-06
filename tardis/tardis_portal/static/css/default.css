@@ -125,11 +125,11 @@ div.copylink {
     border-top: 2px solid #e6e87b;
 }
 
-.navbar-inner {
+/*.navbar-inner {
     background-image: -webkit-linear-gradient(top, #a2a350, #304f3c);
     background-image: -o-linear-gradient(top, #a2a350, #304f3c);
     background-image: linear-gradient(top, #a2a350, #304f3c);
-}
+}*/
 
 .navbar .nav .active > a, .navbar .nav .active > a:hover {
     color: white;
