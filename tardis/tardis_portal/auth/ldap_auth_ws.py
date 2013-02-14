@@ -80,8 +80,12 @@ class LDAP_WSBackend(AuthProvider, UserProvider, GroupProvider):
 
         user = json.loads(response)
         logger.info(user)
+
+        user['first_name'] = user['firstname']
+        user['last_name'] = user['surname']
+
         user['display'] = "%s %s" \
-            % (user['firstname'], user['surname'])
+            % (user['first_name'], user['last_name'])
 
         return user
 
@@ -107,8 +111,11 @@ class LDAP_WSBackend(AuthProvider, UserProvider, GroupProvider):
 
         response = f.read()
         user = json.loads(response)
+        user['first_name'] = user['display']
+        user['last_name'] = user['surname']
+
         user['display'] = "%s %s" \
-            % (user['firstname'], user['surname'])
+            % (user['first_name'], user['last_name'])
 
         return user
 
