@@ -114,9 +114,6 @@ class LDAP_WSBackend(AuthProvider, UserProvider, GroupProvider):
         user['first_name'] = user['display']
         user['last_name'] = user['surname']
 
-        user['display'] = "%s %s" \
-            % (user['first_name'], user['last_name'])
-
         return user
 
     #
