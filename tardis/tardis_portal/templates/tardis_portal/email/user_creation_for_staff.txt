@@ -1,0 +1,10 @@
+Hi, this message is for MyTardis Admins.
+
+A MyTardis account has automatically been created for a user.
+
+System: {{ current_site }}
+
+Username: {{username}}
+
+Thanks,
+MyTardis

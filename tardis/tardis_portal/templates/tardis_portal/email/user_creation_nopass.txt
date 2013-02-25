@@ -1,0 +1,10 @@
+Hello {{first_name}}
+
+A MyTardis account has automatically been created for you.
+
+Login by going to {{ current_site }}/login/
+
+Your username is: {{username}} and your password is the same you use for {{authmethod}}.
+
+Thanks,
+MyTardis Admins
