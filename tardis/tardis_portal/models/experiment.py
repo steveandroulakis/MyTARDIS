@@ -187,6 +187,15 @@ class Experiment(models.Model):
                                             isOwner=True)
         return [acl.get_related_object() for acl in acls]
 
+class ExperimentACLManager(models.Manager):
+    """
+    Added by Sindhu Emilda for natural key implementation.
+    The manager for the tardis_portal's ExperimentACL model.
+    """
+    def get_by_natural_key(self, entityId, title, username):
+        return self.get(entityId=entityId,
+                        experiment=Experiment.objects.get_by_natural_key(title, username),
+        )
 
 class ExperimentACL(models.Model):
     """The ExperimentACL table is the core of the `Tardis
@@ -230,6 +239,14 @@ class ExperimentACL(models.Model):
     expiryDate = models.DateField(null=True, blank=True)
     aclOwnershipType = models.IntegerField(
         choices=__COMPARISON_CHOICES, default=OWNER_OWNED)
+    
+    ''' Added by Sindhu Emilda for natural key implementation '''
+    objects = ExperimentACLManager()
+    
+    def natural_key(self):
+        return (self.entityId,) + self.experiment.natural_key()
+    
+    natural_key.dependencies = ['tardis_portal.Experiment']
 
     def get_related_object(self):
         """
