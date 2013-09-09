@@ -298,10 +298,27 @@ class DatasetParameterSet(models.Model):
         app_label = 'tardis_portal'
         ordering = ['id']
 
+class ExperimentParameterSetManager(OracleSafeManager):
+    """
+    Added by Sindhu Emilda for natural key implementation.
+    The manager for the tardis_portal's ExperimentParameterSet model.
+    """
+    def get_by_natural_key(self, namespace, title, username):
+        return self.get(schema=Schema.objects.get_by_natural_key(namespace),
+                        experiment=Experiment.objects.get_by_natural_key(title, username),
+        )
 
 class ExperimentParameterSet(models.Model):
     schema = models.ForeignKey(Schema)
     experiment = models.ForeignKey(Experiment)
+    
+    ''' Added by Sindhu Emilda for natural key implementation '''
+    objects = ExperimentParameterSetManager()
+    
+    def natural_key(self):
+        return (self.schema.natural_key(),) + self.experiment.natural_key()
+    
+    natural_key.dependencies = ['tardis_portal.Schema', 'tardis_portal.Experiment']
 
     def __unicode__(self):
         return '%s / %s' % (self.schema.namespace, self.experiment.title)
