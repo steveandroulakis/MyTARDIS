@@ -15,8 +15,14 @@ class DatasetManager(OracleSafeManager):
     Added by Sindhu Emilda for natural key implementation.
     The manager for the tardis_portal's Dataset model.
     """
+    # Uncomment the following commented lines before loading Datasets.
     #def get_by_natural_key(self, description, title, username):
     def get_by_natural_key(self, description):
+        """ Ideally the natural key for Dataset should be a combination of description 
+        and  Experiment. But the ManyToManyField relationship manager 'ManyRelatedManager' 
+        throws the exception - object has no attribute 'natural_key'. So Experiment needs
+        to be commented out for loading models other than Dataset.
+        """
         return self.get(description=description,
                         #experiments=Experiment.objects.get_by_natural_key(title, username),
         )
@@ -40,6 +46,11 @@ class Dataset(models.Model):
 
     ''' Added by Sindhu Emilda for natural key implementation '''
     def natural_key(self):
+        """ Ideally the natural key for Dataset should be a combination of description 
+        and  Experiment. But the ManyToManyField relationship manager 'ManyRelatedManager' 
+        throws the exception - object has no attribute 'natural_key'. So Experiment needs
+        to be commented out for loading models other than Dataset.
+        """
         #return (self.description,) + self.experiments.natural_key()
         return (self.description,)
     
