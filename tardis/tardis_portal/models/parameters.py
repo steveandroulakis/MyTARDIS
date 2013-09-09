@@ -286,10 +286,27 @@ class DatafileParameterSet(models.Model):
         app_label = 'tardis_portal'
         ordering = ['id']
 
+class DatasetParameterSetManager(OracleSafeManager):
+    """
+    Added by Sindhu Emilda for natural key implementation.
+    The manager for the tardis_portal's DatasetParameterSet model.
+    """
+    def get_by_natural_key(self, namespace, description):
+        return self.get(schema=Schema.objects.get_by_natural_key(namespace),
+                        dataset=Dataset.objects.get_by_natural_key(description),
+        )
 
 class DatasetParameterSet(models.Model):
     schema = models.ForeignKey(Schema)
     dataset = models.ForeignKey(Dataset)
+
+    ''' Added by Sindhu Emilda for natural key implementation '''
+    objects = DatasetParameterSetManager()
+    
+    def natural_key(self):
+        return (self.schema.natural_key(),) + self.dataset.natural_key()
+    
+    natural_key.dependencies = ['tardis_portal.Schema', 'tardis_portal.Dataset']
 
     def __unicode__(self):
         return '%s / %s' % (self.schema.namespace, self.dataset.description)
