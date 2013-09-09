@@ -10,6 +10,17 @@ from .experiment import Experiment
 import logging
 logger = logging.getLogger(__name__)
 
+class DatasetManager(OracleSafeManager):
+    """
+    Added by Sindhu Emilda for natural key implementation.
+    The manager for the tardis_portal's Dataset model.
+    """
+    #def get_by_natural_key(self, description, title, username):
+    def get_by_natural_key(self, description):
+        return self.get(description=description,
+                        #experiments=Experiment.objects.get_by_natural_key(title, username),
+        )
+
 class Dataset(models.Model):
     """Class to link datasets to experiments
 
@@ -21,10 +32,18 @@ class Dataset(models.Model):
     experiments = models.ManyToManyField(Experiment, related_name='datasets')
     description = models.TextField(blank=True)
     immutable = models.BooleanField(default=False)
-    objects = OracleSafeManager()
+    #objects = OracleSafeManager()   # Commented by Sindhu E
+    objects = DatasetManager()   # For natural key support added by Sindhu E
 
     class Meta:
         app_label = 'tardis_portal'
+
+    ''' Added by Sindhu Emilda for natural key implementation '''
+    def natural_key(self):
+        #return (self.description,) + self.experiments.natural_key()
+        return (self.description,)
+    
+    natural_key.dependencies = ['tardis_portal.Experiment']
 
     def getParameterSets(self, schemaType=None):
         """Return the dataset parametersets associated with this
