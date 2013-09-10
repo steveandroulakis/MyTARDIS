@@ -381,6 +381,15 @@ class DatafileParameter(models.Model):
         app_label = 'tardis_portal'
         ordering = ['name']
 
+class DatasetParameterManager(OracleSafeManager):
+    """
+    Added by Sindhu Emilda for natural key implementation.
+    The manager for the tardis_portal's DatasetParameter model.
+    """
+    def get_by_natural_key(self, namespace, name, description):
+        return self.get(name=ParameterName.objects.get_by_natural_key(namespace, name),
+                        parameterset=DatasetParameterSet.objects.get_by_natural_key(description),
+        )
 
 class DatasetParameter(models.Model):
 
@@ -389,7 +398,15 @@ class DatasetParameter(models.Model):
     string_value = models.TextField(null=True, blank=True, db_index=True)
     numerical_value = models.FloatField(null=True, blank=True, db_index=True)
     datetime_value = models.DateTimeField(null=True, blank=True, db_index=True)
-    objects = OracleSafeManager()
+    #objects = OracleSafeManager() # Commented by Sindhu E for natural key support
+    
+    ''' Added by Sindhu Emilda for natural key implementation '''
+    objects = DatasetParameterManager()
+    
+    def natural_key(self):
+        return (self.name.natural_key(),) + self.parameterset.natural_key()
+    
+    natural_key.dependencies = ['tardis_portal.ParameterName', 'tardis_portal.DatasetParameterSet']
 
     def get(self):
         return _getParameter(self)
