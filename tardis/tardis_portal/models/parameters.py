@@ -292,7 +292,7 @@ class DatafileParameterSet(models.Model):
     objects = DatafileParameterSetManager()
     
     def natural_key(self):
-        return (self.schema.natural_key(),) + self.dataset_file.natural_key()
+        return self.schema.natural_key() + self.dataset_file.natural_key()
     
     natural_key.dependencies = ['tardis_portal.Schema', 'tardis_portal.Dataset_File']
 
@@ -321,7 +321,7 @@ class DatasetParameterSet(models.Model):
     objects = DatasetParameterSetManager()
     
     def natural_key(self):
-        return (self.schema.natural_key(),) + self.dataset.natural_key()
+        return self.schema.natural_key() + self.dataset.natural_key()
     
     natural_key.dependencies = ['tardis_portal.Schema', 'tardis_portal.Dataset']
 
@@ -350,7 +350,7 @@ class ExperimentParameterSet(models.Model):
     objects = ExperimentParameterSetManager()
     
     def natural_key(self):
-        return (self.schema.natural_key(),) + self.experiment.natural_key()
+        return self.schema.natural_key() + self.experiment.natural_key()
     
     natural_key.dependencies = ['tardis_portal.Schema', 'tardis_portal.Experiment']
 
