@@ -361,6 +361,15 @@ class ExperimentParameterSet(models.Model):
         app_label = 'tardis_portal'
         ordering = ['id']
 
+class DatafileParameterManager(OracleSafeManager):
+    """
+    Added by Sindhu Emilda for natural key implementation.
+    The manager for the tardis_portal's DatafileParameter model.
+    """
+    def get_by_natural_key(self, nmspace, filename, description, namespace, name):
+        return self.get(parameterset=DatafileParameterSet.objects.get_by_natural_key(nmspace, filename, description),
+                        name=ParameterName.objects.get_by_natural_key(namespace, name),
+        )
 
 class DatafileParameter(models.Model):
 
@@ -369,7 +378,15 @@ class DatafileParameter(models.Model):
     string_value = models.TextField(null=True, blank=True, db_index=True)
     numerical_value = models.FloatField(null=True, blank=True, db_index=True)
     datetime_value = models.DateTimeField(null=True, blank=True, db_index=True)
-    objects = OracleSafeManager()
+    #objects = OracleSafeManager() # Commented by Sindhu E for natural key support
+    
+    ''' Added by Sindhu Emilda for natural key implementation '''
+    objects = DatafileParameterManager()
+    
+    def natural_key(self):
+        return (self.parameterset.natural_key(),) + self.name.natural_key()
+    
+    natural_key.dependencies = ['tardis_portal.DatafileParameterSet', 'tardis_portal.ParameterName']
 
     def get(self):
         return _getParameter(self)
