@@ -2,6 +2,15 @@ from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.db import models
 
+class UserProfileManager():
+    """
+    Added by Sindhu Emilda for natural key implementation.
+    The manager for the tardis_portal's UserProfile model.
+    """
+    def get_by_natural_key(self, username):
+        return self.get(user=User.objects.get_by_natural_key(username),
+        )
+        
 class UserProfile(models.Model):
     """
     UserProfile class is an extension to the Django standard user model.
@@ -19,6 +28,14 @@ class UserProfile(models.Model):
     # False.
     isDjangoAccount = models.BooleanField(
         null=False, blank=False, default=True)
+
+    ''' Added by Sindhu Emilda for natural key implementation '''
+    objects = UserProfileManager()
+    
+    def natural_key(self):
+        return self.user.natural_key()
+    
+    natural_key.dependencies = ['auth.User']
 
     class Meta:
         app_label = 'tardis_portal'
