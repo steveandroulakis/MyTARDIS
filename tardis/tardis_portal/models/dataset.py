@@ -54,7 +54,7 @@ class Dataset(models.Model):
         #return (self.description,) + self.experiments.natural_key()
         return (self.description,)
     
-    natural_key.dependencies = ['tardis_portal.Experiment']
+    #natural_key.dependencies = ['tardis_portal.Experiment']
 
     def getParameterSets(self, schemaType=None):
         """Return the dataset parametersets associated with this
