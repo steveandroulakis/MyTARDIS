@@ -2,6 +2,15 @@ from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.db import models
 
+class UserProfileManager():
+    """
+    Added by Sindhu Emilda for natural key implementation.
+    The manager for the tardis_portal's UserProfile model.
+    """
+    def get_by_natural_key(self, username):
+        return self.get(user=User.objects.get_by_natural_key(username),
+        )
+        
 class UserProfile(models.Model):
     """
     UserProfile class is an extension to the Django standard user model.
@@ -19,6 +28,14 @@ class UserProfile(models.Model):
     # False.
     isDjangoAccount = models.BooleanField(
         null=False, blank=False, default=True)
+
+    ''' Added by Sindhu Emilda for natural key implementation '''
+    objects = UserProfileManager()
+    
+    def natural_key(self):
+        return self.user.natural_key()
+    
+    natural_key.dependencies = ['auth.User']
 
     class Meta:
         app_label = 'tardis_portal'
@@ -40,6 +57,15 @@ class UserProfile(models.Model):
     def __unicode__(self):
         return self.user.username
 
+class GroupAdminManager():
+    """
+    Added by Sindhu Emilda for natural key implementation.
+    The manager for the tardis_portal's GroupAdmin model.
+    """
+    def get_by_natural_key(self, username, groupname):
+        return self.get(user=User.objects.get_by_natural_key(username),
+                        group=Group.objects.get_by_natural_key(groupname),
+        )
 
 class GroupAdmin(models.Model):
     """GroupAdmin links the Django User and Group tables for group
@@ -54,12 +80,28 @@ class GroupAdmin(models.Model):
     user = models.ForeignKey(User)
     group = models.ForeignKey(Group)
 
+    ''' Added by Sindhu Emilda for natural key implementation '''
+    objects = GroupAdminManager()
+    
+    def natural_key(self):
+        return (self.user.natural_key(),) + self.group.natural_key()
+    
+    natural_key.dependencies = ['auth.User', 'auth.Group']
+
     class Meta:
         app_label = 'tardis_portal'
 
     def __unicode__(self):
         return '%s: %s' % (self.user.username, self.group.name)
 
+class UserAuthenticationManager():
+    """
+    Added by Sindhu Emilda for natural key implementation.
+    The manager for the tardis_portal's UserAuthentication model.
+    """
+    def get_by_natural_key(self, username):
+        return self.get(userProfile=UserProfile.objects.get_by_natural_key(username),
+        )
 
 # TODO: Generalise auth methods
 class UserAuthentication(models.Model):
@@ -67,6 +109,14 @@ class UserAuthentication(models.Model):
     userProfile = models.ForeignKey(UserProfile)
     username = models.CharField(max_length=50)
     authenticationMethod = models.CharField(max_length=30, choices=CHOICES)
+
+    ''' Added by Sindhu Emilda for natural key implementation '''
+    objects = UserAuthenticationManager()
+    
+    def natural_key(self):
+        return self.userProfile.natural_key()
+    
+    natural_key.dependencies = ['tardis_portal.UserProfile']
 
     class Meta:
         app_label = 'tardis_portal'

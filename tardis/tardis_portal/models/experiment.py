@@ -61,11 +61,19 @@ class Experiment(models.Model):
                                          default=PUBLIC_ACCESS_NONE)
     license = models.ForeignKey(License, #@ReservedAssignment
                                 blank=True, null=True)
-    objects = OracleSafeManager()
-    safe = ExperimentManager()  # The acl-aware specific manager.
+    
+    ''' Added by Sindhu Emilda for natural key implementation '''
+    #objects = OracleSafeManager()  # Commented by Sindhu E
+    objects = ExperimentManager()   # For natural key support added by Sindhu E
+    safe = ExperimentManager()      # The acl-aware specific manager.
 
+    def natural_key(self):
+        return (self.title,) + self.created_by.natural_key()
+    
     class Meta:
         app_label = 'tardis_portal'
+    
+    natural_key.dependencies = ['auth.User']
 
     def save(self, *args, **kwargs):
         super(Experiment, self).save(*args, **kwargs)
@@ -179,6 +187,15 @@ class Experiment(models.Model):
                                             isOwner=True)
         return [acl.get_related_object() for acl in acls]
 
+class ExperimentACLManager(models.Manager):
+    """
+    Added by Sindhu Emilda for natural key implementation.
+    The manager for the tardis_portal's ExperimentACL model.
+    """
+    def get_by_natural_key(self, entityId, title, username):
+        return self.get(entityId=entityId,
+                        experiment=Experiment.objects.get_by_natural_key(title, username),
+        )
 
 class ExperimentACL(models.Model):
     """The ExperimentACL table is the core of the `Tardis
@@ -222,6 +239,14 @@ class ExperimentACL(models.Model):
     expiryDate = models.DateField(null=True, blank=True)
     aclOwnershipType = models.IntegerField(
         choices=__COMPARISON_CHOICES, default=OWNER_OWNED)
+    
+    ''' Added by Sindhu Emilda for natural key implementation '''
+    objects = ExperimentACLManager()
+    
+    def natural_key(self):
+        return (self.entityId,) + self.experiment.natural_key()
+    
+    natural_key.dependencies = ['tardis_portal.Experiment']
 
     def get_related_object(self):
         """
@@ -250,6 +275,15 @@ class ExperimentACL(models.Model):
         app_label = 'tardis_portal'
         ordering = ['experiment__id']
 
+class Author_ExperimentManager(models.Manager):
+    """
+    Added by Sindhu Emilda for natural key implementation.
+    The manager for the tardis_portal's Author_Experiment model.
+    """
+    def get_by_natural_key(self, author, title, username):
+        return self.get(author=author,
+                        experiment=Experiment.objects.get_by_natural_key(title, username),
+        )
 
 class Author_Experiment(models.Model):
 
@@ -261,6 +295,14 @@ class Author_Experiment(models.Model):
         blank=True,
         help_text="URL identifier for the author")
 
+    ''' Added by Sindhu Emilda for natural key implementation '''
+    objects = Author_ExperimentManager()
+    
+    def natural_key(self):
+        return (self.author,) + self.experiment.natural_key()
+    
+    natural_key.dependencies = ['tardis_portal.Experiment']
+    
     def save(self, *args, **kwargs):
         super(Author_Experiment, self).save(*args, **kwargs)
         try:
