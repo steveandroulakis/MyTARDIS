@@ -919,6 +919,9 @@ class ReplicaResource(MyTardisModelResource):
 
     class Meta(MyTardisModelResource.Meta):
         queryset = Replica.objects.all()
+        filtering = {
+            'verified': ('exact',),
+        }
 
     def hydrate_location(self, bundle):
         try:
