@@ -921,6 +921,7 @@ class ReplicaResource(MyTardisModelResource):
         queryset = Replica.objects.all()
         filtering = {
             'verified': ('exact',),
+            'url': ('exact', 'startswith'),
         }
 
     def hydrate_location(self, bundle):
