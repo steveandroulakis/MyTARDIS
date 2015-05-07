@@ -26,6 +26,8 @@ IMAGE_FILTER = (Q(mimetype__startswith='image/') &
     (Q(datafileparameterset__datafileparameter__name__units__startswith="image"))  # noqa
 
 
+#TODOsteve
+
 class DataFile(models.Model):
     """Class to store meta-data about a file.  The physical copies of a
     file are described by distinct DataFileObject instances.
