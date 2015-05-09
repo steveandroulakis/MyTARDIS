@@ -454,7 +454,8 @@ class DataFileObject(models.Model):
 
     @task(name="tardis_portal.verify_dfo_method", ignore_result=True)  # noqa # too complex
     def verify(self):  # too complex # noqa
-        md5, sha512, size, mimetype_buffer = generate_file_checksums(
+        self.checksums = generate_file_checksums
+        md5, sha512, size, mimetype_buffer = self.checksums(
             self.file_object)
         df_md5 = self.datafile.md5sum
         df_sha512 = self.datafile.sha512sum

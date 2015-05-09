@@ -63,11 +63,18 @@ def ensure_dir(f):
         os.makedirs(d)
 
 def newer_archive(tar_file, cache_file):
+    # if true then need to get from tape
     if not os.path.exists(cache_file):
         print 'path %s does not exist' % cache_file
         return True
 
-    return os.path.getmtime(tar_file) > os.path.getmtime(cache_file)
+    print tar_file
+    print cache_file
+    not_modified = \
+        os.path.getmtime(tar_file) == os.path.getmtime(cache_file)
+    print not_modified
+
+    return not not_modified
 
 
 def retrieve_tar_from_tape(tar_path, cache_path, dataset_id):
@@ -123,10 +130,10 @@ class TarArchiveFileSystemStorage(Storage):
     def _open(self, name, mode='rb'):
         import tarfile, shutil
 
-        if newer_archive(self.tar_file, self.cache_file):
-            print "archive newer or cache copy doesn't exist error"
-            raise IOError("%s tape archive is newer than disk copy, please retrieve"
-                          % self.dataset_id)
+        # if newer_archive(self.tar_file, self.cache_file):
+        #     print "archive newer or cache copy doesn't exist error"
+        #     raise IOError("%s tape archive is newer than disk copy, please retrieve"
+        #                   % self.dataset_id)
 
         # open tar in cache for reading
         tar = tarfile.open(self.cache_file)
