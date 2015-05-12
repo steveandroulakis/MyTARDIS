@@ -16,97 +16,35 @@ from django.utils.text import get_valid_filename
 from django.utils._os import safe_join, abspathu
 from django.core.files.storage import Storage
 import logging
-from tardis.tardis_portal.models import StorageBox, DataFileObject
+import shutil
 
 log = logging.getLogger(__name__)
 
-@task(name="tardis_portal.tararchive.copy_files", ignore_result=True)
-def copy_files(self, dest_box=None):
-    for dfo in self.file_objects.all():
-        dfo.copy_file(dest_box)
 
-
-@task(name='tardis_portal.tararchive.copy_file', ignore_result=True)
-def copy_file(self, dest_box=None, verify=True):
-    '''
-    copies file to new storage box
-    checks for existing copy
-    triggers async verification if not disabled
-    '''
-    if dest_box is None:
-        dest_box = StorageBox.get_default_storage()
-    existing = self.datafile.file_objects.filter(storage_box=dest_box)
-    if existing.count() > 0:
-        if not existing[0].verified and verify:
-            existing[0].verify.delay()
-        return existing[0]
-    try:
-        with transaction.commit_on_success():
-            copy = DataFileObject(
-                datafile=self.datafile,
-                storage_box=dest_box)
-            copy.save()
-            copy.file_object = self.file_object
-    except Exception as e:
-        log.error(
-            'file move failed for dfo id: %s, with error: %s' %
-            (self.id, str(e)))
-        return False
-    if verify:
-        copy.verify.delay()
-    return copy
-
-#TODOsteve utils
-def ensure_dir(f):
-    d = os.path.dirname(f)
-    if not os.path.exists(d):
-        os.makedirs(d)
-
-def newer_archive(tar_file, cache_file):
-    # if true then need to get from tape
-    if not os.path.exists(cache_file):
-        print 'path %s does not exist' % cache_file
-        return True
-
-    print tar_file
-    print cache_file
-    not_modified = \
-        os.path.getmtime(tar_file) == os.path.getmtime(cache_file)
-    print not_modified
-
-    return not not_modified
-
-
-def retrieve_tar_from_tape(tar_path, cache_path, dataset_id):
-    import shutil
-    tar_file = tar_path + '/' + dataset_id + '.tar'
-    cache_file = cache_path + '/' + dataset_id + '.tar'
-    # tmp tar in cache for extract
-    shutil.copy2(tar_file, cache_file)
-
-    return cache_file
-
-
-# todo add functions to
 class TarArchiveFileSystemStorage(Storage):
     """
-    Standard filesystem storage
+    Tar Archive storage
     """
 
-    def __init__(self, cache_path=None, base_url=None, dataset_id=None,
-                 tar_path=None):
-        # cache location
-        if cache_path is None:
-            cache_path = '/home/ubuntu/mytardis/var/tararchive_cache/'
-        self.base_location = cache_path
-        self.cache_path = abspathu(self.base_location)
+    def __init__(self, base_url=None, dataset_id=None):
+
+        self.tar_path = getattr(settings,
+                                   'TARARCHIVE_TAR_PATH',
+                                   '/mnt/tararchive')
+
+        self.cache_path = getattr(settings,
+                                  'TARARCHIVE_CACHE_PATH',
+                                  '/mnt/tararchive_cache')
+
+        self.base_location = self.cache_path
         if base_url is None:
             base_url = settings.MEDIA_URL
         self.base_url = base_url
         self.dataset_id = dataset_id
-        self.tar_path = tar_path
-        self.tar_file = self.tar_path + '/' + self.dataset_id + '.tar'
-        self.cache_file = self.cache_path + '/' + self.dataset_id + '.tar'
+        tararchive_util = TarArchiveFileSystemStorageUtil(self.dataset_id)
+
+        self.tar_file, self.cache_file = tararchive_util.archive_paths()
+
 
     '''
     In reality this won't happen from direct downloads as we don't want to
@@ -130,18 +68,10 @@ class TarArchiveFileSystemStorage(Storage):
     def _open(self, name, mode='rb'):
         import tarfile, shutil
 
-        # if newer_archive(self.tar_file, self.cache_file):
-        #     print "archive newer or cache copy doesn't exist error"
-        #     raise IOError("%s tape archive is newer than disk copy, please retrieve"
-        #                   % self.dataset_id)
+        tar_name, filename = file_archive_paths(name)
 
         # open tar in cache for reading
         tar = tarfile.open(self.cache_file)
-
-        # filename = 'A dataset-1/Photo 4-10-12 2 15 00 PM.png'
-        # filename = 'A dataset-1/SekZx.jpg'
-
-        filename = name
 
         write_path = self.cache_path + '/' + filename
 
@@ -229,10 +159,11 @@ class TarArchiveFileSystemStorage(Storage):
         """
         Deletes the specified file from the storage system.
         """
-        raise NotImplementedError()
+        raise NotImplementedError("This backend doesn't support deletion.")
 
     def exists(self, name):
-        return os.path.exists(self.path(name))
+        tar_file, filename = file_archive_paths(name)
+        return os.path.exists(self.path(filename))
 
     def listdir(self, path):
         path = self.path(path)
@@ -263,11 +194,67 @@ class TarArchiveFileSystemStorage(Storage):
     def modified_time(self, name):
         return datetime.fromtimestamp(os.path.getmtime(self.path(name)))
 
-def get_storage_class(import_path=None):
-    return import_by_path(import_path or settings.DEFAULT_FILE_STORAGE)
 
-class DefaultStorage(LazyObject):
-    def _setup(self):
-        self._wrapped = get_storage_class()()
+class TarArchiveFileSystemStorageUtil():
+    """
+    Tar Archive storage
+    """
 
-default_storage = DefaultStorage()
+    def __init__(self, dataset_id=None):
+
+        self.dataset_id = dataset_id
+
+        self.tar_path = getattr(settings,
+                                   'TARARCHIVE_TAR_PATH',
+                                   '/mnt/tararchive')
+
+        self.cache_path = getattr(settings,
+                                  'TARARCHIVE_CACHE_PATH',
+                                  '/mnt/tararchive_cache')
+
+    def archive_paths(self):
+        tar_file = os.path.join(self.tar_path, '%s%s' % (self.dataset_id, '.tar'))
+        cache_file = os.path.join(self.cache_path, '%s%s' % (self.dataset_id, '.tar'))
+
+        return tar_file, cache_file
+
+    def newer_archive(self):
+
+        tar_file, cache_file = self.archive_paths(self.dataset_id)
+
+        # if true then need to get from tape
+        if not os.path.exists(cache_file):
+            log.info('path %s does not exist' % cache_file)
+            return True
+
+        not_modified = \
+            os.path.getmtime(tar_file) == os.path.getmtime(cache_file)
+        print not_modified
+
+        return not not_modified
+
+    def retrieve_tar_from_tape(self):
+        tar_file, cache_file = self.archive_paths()
+        # tmp tar in cache for extract
+        shutil.copy2(tar_file, cache_file)
+
+        return cache_file
+
+
+def ensure_dir(f):
+    '''
+    mkdir -p
+    '''
+    d = os.path.dirname(f)
+    if not os.path.exists(d):
+        os.makedirs(d)
+
+
+def file_archive_paths(filename):
+    '''
+    returns ('1.tar', 'Test Dataset-1/file.png')
+    from filename '1.tar/Test Dataset-1/file.png'
+    '''
+    tar_name = filename.split('/')[0]
+    file_path = filename[len(tar_name) + 1:]
+    return tar_name, file_path
