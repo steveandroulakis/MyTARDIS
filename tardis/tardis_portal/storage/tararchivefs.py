@@ -17,6 +17,7 @@ from django.utils._os import safe_join, abspathu
 from django.core.files.storage import Storage
 import logging
 import shutil
+from tardis.tardis_portal.models import DataFile, StorageBox, StorageBoxOption
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class TarArchiveFileSystemStorage(Storage):
     Tar Archive storage
     """
 
-    def __init__(self, base_url=None, dataset_id=None):
+    def __init__(self, base_url=None, dataset_id=None, cache_status=None):
 
         self.tar_path = getattr(settings,
                                    'TARARCHIVE_TAR_PATH',
@@ -41,6 +42,7 @@ class TarArchiveFileSystemStorage(Storage):
             base_url = settings.MEDIA_URL
         self.base_url = base_url
         self.dataset_id = dataset_id
+        self.cache_status = cache_status
         tararchive_util = TarArchiveFileSystemStorageUtil(self.dataset_id)
 
         self.tar_file, self.cache_file = tararchive_util.archive_paths()
@@ -233,12 +235,76 @@ class TarArchiveFileSystemStorageUtil():
 
         return not not_modified
 
-    def retrieve_tar_from_tape(self):
-        tar_file, cache_file = self.archive_paths()
-        # tmp tar in cache for extract
-        shutil.copy2(tar_file, cache_file)
+    def is_tape_only(self):
+        dfs = DataFile.objects.filter(dataset__id=self.dataset_id, \
+        file_objects__storage_box__django_storage_class=
+            settings.TARARCHIVE_CLASS)
 
-        return cache_file
+        tape_only = True
+
+        for df in dfs:
+            if df.file_objects.count() > 1:
+                tape_only = False
+
+        return tape_only
+
+@task
+def retrieve_dfos_from_tararchive(dataset_id):
+        tararchive_util = TarArchiveFileSystemStorageUtil(dataset_id)
+
+        tararchive_box = \
+            StorageBox.objects.filter(options__key='dataset_id',
+                                      options__value=dataset_id,
+                                      django_storage_class=
+                                      settings.TARARCHIVE_CLASS).first()
+
+        if tararchive_box is None:
+            return
+
+        retrieval_status = tararchive_box.get_options_as_dict()['cache_status']
+        if retrieval_status == "pending":
+            print "task cancelled: retrieval in progress"
+            return
+
+        update_cache_status(tararchive_box, 'pending')
+        print 'Tape only dataset: ' + str(tararchive_util.is_tape_only())
+
+        if tararchive_util.is_tape_only():
+
+            print 'getting data from tape as its different from archived'
+            # TODO delay
+            retrieve_tar_from_tape(dataset_id)
+            # print 'copying files back to default box'
+            #default_box = tararchive_box.get_default_storage()
+            #default_box = StorageBox.objects.filter(django_storage_class='tardis.tardis_portal.storage.MyTardisLocalFileSystemStorage').first()
+            tararchive_box.copy_files()
+            #print default_box
+
+        update_cache_status(tararchive_box, 'cached')
+
+
+def retrieve_tar_from_tape(dataset_id):
+    import time
+
+    tararchive_util = TarArchiveFileSystemStorageUtil(dataset_id)
+    tar_file, cache_file = tararchive_util.archive_paths()
+    # tmp tar in cache for extract
+    time.sleep(2)
+    shutil.copy2(tar_file, cache_file)
+    time.sleep(2)
+
+    return cache_file
+
+
+def update_cache_status(tararchive_box, value):
+    key = 'cache_status'
+    try:
+        opt = tararchive_box.options.get(key=key)
+        opt.value = value
+        opt.save()
+    except StorageBoxOption.DoesNotExist:
+        opt = StorageBoxOption(storage_box=tararchive_box, key=key, value=value)
+        opt.save()
 
 
 def ensure_dir(f):
@@ -258,3 +324,4 @@ def file_archive_paths(filename):
     tar_name = filename.split('/')[0]
     file_path = filename[len(tar_name) + 1:]
     return tar_name, file_path
+
