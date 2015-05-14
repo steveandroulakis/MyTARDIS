@@ -1,3 +1,5 @@
+import tarfile
+import uuid
 from celery.task import task
 from django.db import transaction
 import os
@@ -17,7 +19,7 @@ from django.utils._os import safe_join, abspathu
 from django.core.files.storage import Storage
 import logging
 import shutil
-from tardis.tardis_portal.models import DataFile, StorageBox, StorageBoxOption
+from tardis.tardis_portal.models import DataFile, StorageBox, StorageBoxOption, Dataset, DataFileObject
 
 log = logging.getLogger(__name__)
 
@@ -242,6 +244,9 @@ class TarArchiveFileSystemStorageUtil():
 
         tape_only = True
 
+        if len(dfs) == 0:
+            tape_only = False
+
         for df in dfs:
             if df.file_objects.count() > 1:
                 tape_only = False
@@ -259,11 +264,12 @@ def retrieve_dfos_from_tararchive(dataset_id):
                                       settings.TARARCHIVE_CLASS).first()
 
         if tararchive_box is None:
+            print "dataset %s has no data on tar archive" % dataset_id
             return
 
         retrieval_status = tararchive_box.get_options_as_dict()['cache_status']
         if retrieval_status == "pending":
-            print "task cancelled: retrieval in progress"
+            print "task cancelled: action in progress"
             return
 
         update_cache_status(tararchive_box, 'pending')
@@ -272,13 +278,10 @@ def retrieve_dfos_from_tararchive(dataset_id):
         if tararchive_util.is_tape_only():
 
             print 'getting data from tape as its different from archived'
-            # TODO delay
             retrieve_tar_from_tape(dataset_id)
             # print 'copying files back to default box'
-            #default_box = tararchive_box.get_default_storage()
-            #default_box = StorageBox.objects.filter(django_storage_class='tardis.tardis_portal.storage.MyTardisLocalFileSystemStorage').first()
+
             tararchive_box.copy_files()
-            #print default_box
 
         update_cache_status(tararchive_box, 'cached')
 
@@ -325,3 +328,137 @@ def file_archive_paths(filename):
     file_path = filename[len(tar_name) + 1:]
     return tar_name, file_path
 
+
+def get_or_create_tararchive_box(dataset_id):
+    tararchive_box = tararchive_boxes = StorageBox.objects.filter(
+        options__key='dataset_id', options__value=dataset_id,
+        django_storage_class=settings.TARARCHIVE_CLASS).first()
+
+    if not tararchive_box:
+        print "creating tararchive_box for %s" % dataset_id
+
+        tararchive_box = StorageBox(django_storage_class=settings.TARARCHIVE_CLASS,
+                                   max_size=settings.TARARCHIVE_MAX_CACHE_SIZE,
+                                   status='online',
+                                   name='tararchive dataset %s' % dataset_id,
+                                   description='tararchive storage')
+        tararchive_box.save()
+        opt = StorageBoxOption(storage_box=tararchive_box, key='dataset_id', value=str(dataset_id))
+        opt.save()
+        opt = StorageBoxOption(storage_box=tararchive_box, key='cache_status', value='none')
+        opt.save()
+    else:
+        print "tararchive box for dataset %s - exists" % dataset_id
+
+    return tararchive_box
+
+
+def can_tar_archive(tararchive_box, dataset_id):
+    retrieval_status = tararchive_box.get_options_as_dict()['cache_status']
+    if retrieval_status == "pending":
+        print "task cancelled: action in progress"
+        return False
+
+    # dfos for dataset with default boxes but nothing else
+    dfs = DataFile.objects.filter(dataset__id=dataset_id,
+                                  file_objects__storage_box=\
+                                  tararchive_box.get_default_storage())
+
+    no_disk = (dfs.count() == 0)
+    if no_disk:
+        print 'Not archiving dataset %s - No disk copy' % dataset_id
+        return False
+
+    return True
+
+
+def tararchive_datasets():
+    datasets = Dataset.objects.all()
+
+    for dataset in datasets:
+        tararchive_box = get_or_create_tararchive_box(dataset.id)
+
+        can_tar = can_tar_archive(tararchive_box, dataset.id)
+        print "can tar archive dataset %s - %s"\
+        % (dataset.id, can_tar)
+
+        if can_tar:
+            tararchive_dataset(dataset.id)
+
+
+def tararchive_dataset(dataset_id):
+    dataset = Dataset.objects.get(id=dataset_id)
+    print 'dataset: ' + str(dataset)
+
+    tararchive_box = StorageBox.objects.filter(
+        options__key='dataset_id', options__value=dataset_id,
+        django_storage_class=settings.TARARCHIVE_CLASS).first()
+
+    tararchive_util = TarArchiveFileSystemStorageUtil(dataset_id)
+
+    dataset_tar, existing_cache_tar = tararchive_util.archive_paths()
+
+    update_cache_status(tararchive_box, 'pending')
+
+    # remove all old associated dfos from box
+    for dfo in tararchive_box.file_objects.all():
+        print dfo
+        print file_archive_paths(dfo.file_object.name)
+        dfo.delete()
+
+    # tar exists or not
+    exists = os.path.isfile(dataset_tar)
+    print 'tar exists: ' + str(exists)
+
+    unique_filename = str(uuid.uuid4()) + '.tar'
+    tmp_cache_tar = os.path.dirname(existing_cache_tar)\
+        + '/' + unique_filename
+
+    # if tar archive doesn't exist
+    # TODOsteve modified times and update/replace tar
+    if 1==1:
+        # create tar in cache
+        with tarfile.open(tmp_cache_tar, "w") as tar:
+            for df in dataset.datafile_set.all():
+
+                dfo = df.file_objects.first()
+                file_path = dfo._storage.path(dfo.uri)
+
+                info = tarfile.TarInfo(name=dfo.uri)
+                info.size=os.path.getsize(file_path)
+
+                # todo: file object not file path
+                # eg to be swift compatible?
+                tar.addfile(info,
+                        file(file_path))
+
+        # copy file to tar archive and rename to dataset_id.tar
+        existing_cache_tar
+
+        print 'renaming ' + str(tmp_cache_tar) \
+            + ' to ' + str(existing_cache_tar)
+        os.rename(tmp_cache_tar, existing_cache_tar)
+
+        print 'copying temp tar file ' + tmp_cache_tar + ' to ' + os.path.dirname(dataset_tar)
+        shutil.copy2(existing_cache_tar, dataset_tar)
+
+        # remove tar from cache
+        #os.remove(tmp_cache_tar)
+
+        for df in dataset.datafile_set.all():
+            dfo = df.file_objects.first()
+            print '\t' + dfo._storage.path(dfo.uri)
+
+            # create dfo
+            # TODOsteve create storage box in process
+            copy = DataFileObject(
+                datafile=df,
+                storage_box=tararchive_box,
+                uri='%s.tar/%s' % (dataset_id, dfo.uri))
+            copy.save()
+
+            print 'creating dfo copy ' + str(df) + ' in ' + str(tararchive_box)
+
+        update_cache_status(tararchive_box, 'stored')
+
+    # TODOsteve finally clean up on fail/success
